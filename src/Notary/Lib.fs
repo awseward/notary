@@ -16,6 +16,7 @@
                     WindowStyle            = ProcessWindowStyle.Hidden)
             let proc = Process.Start(psi)
             let stdOut = proc.StandardOutput.ReadToEnd()
+            proc.WaitForExit()
 
             // This could definitely be loads better
             stdOut
