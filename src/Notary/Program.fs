@@ -18,30 +18,46 @@ let main argv =
     if Array.isEmpty argv then _basicFail()
     else
         // TODO: Unhardcode these
-        let certutilExeFilePath = @"C:\WINDOWS\System32\certutil.exe"
-        let signtoolExeFilePath = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
+        let certutil = @"C:\WINDOWS\System32\certutil.exe"
+        let signtool = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
 
         try
             match Array.head argv with
             | "getPfxCertHash" ->
-                argv
-                |> Array.item 1
-                |> Lib.getPfxCertHash certutilExeFilePath
+                let pfx = argv.[1]
+
+                pfx
+                |> Lib.getPfxCertHash certutil
                 |> printfn "%s"
 
                 _block()
                 0
             | "checkIfAlreadySigned" ->
-                let pfxFilePath = argv.[1]
+                let pfx  = argv.[1]
+                let file = argv.[2]
 
-                argv
-                |> Array.item 2
-                |> Lib.isFileSignedByPfx signtoolExeFilePath certutilExeFilePath pfxFilePath
+                file
+                |> Lib.isFileSignedByPfx signtool certutil pfx
                 |> printfn "%b"
+
+                _block()
+                0
+            | "ensureSigned" ->
+                let pfx       = argv.[1]
+                let password  = argv.[2]
+                let filePaths =
+                    argv
+                    |> Array.skip 3
+                    |> Array.map (fun str -> str.Trim())
+
+                Lib.signIfNotSigned signtool certutil pfx password filePaths
 
                 _block()
                 0
             | _ ->
                 _basicFail()
         with
-        | _ -> _basicFail()
+        | ex ->
+            printfn "%s" ex.Message
+            _block()
+            _basicFail()
