@@ -5,7 +5,7 @@
         open System.Diagnostics
         open System.Text.RegularExpressions
 
-        let getPfxCertHash (certutilExeFilePath: string) (pfxFilePath: string) =
+        let getPfxCertHash certutilExeFilePath pfxFilePath =
             let psi =
                 ProcessStartInfo(
                     FileName               = certutilExeFilePath,
@@ -20,14 +20,14 @@
             // This could definitely be loads better
             stdOut
             |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
-            |> Array.filter (fun (str: string) -> str.StartsWith("Cert Hash(sha1): "))
+            |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
             |> Seq.last
             |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
             |> (fun str -> str.Trim())
             |> (fun str -> str.Replace(" ", ""))
             |> (fun str -> str.ToUpperInvariant())
 
-        let isFileSignedByCertHash (signtoolExeFilePath: string) (filePath: string) (certHash: string) =
+        let isFileSignedByCertHash signtoolExeFilePath filePath certHash =
             let psi =
                 ProcessStartInfo(
                     FileName               = signtoolExeFilePath,
@@ -41,7 +41,7 @@
 
             proc.ExitCode = 0
 
-        let isFileSignedByPfx (signtoolExeFilePath: string) (certutilExeFilePath: string) (pfxFilePath: string) (filePath: string) =
+        let isFileSignedByPfx signtoolExeFilePath certutilExeFilePath pfxFilePath filePath =
             pfxFilePath
             |> getPfxCertHash certutilExeFilePath
             |> isFileSignedByCertHash signtoolExeFilePath filePath
