@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Drew Seward</authors>
+    <owners>Drew Seward</owners>
+    <projectUrl>https://github.com/awseward/notary</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A simple tool to make code signing a little less painful</description>
+    <copyright>Copyright 2017</copyright>
+  </metadata>
+</package>
