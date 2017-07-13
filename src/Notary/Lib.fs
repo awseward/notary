@@ -5,15 +5,15 @@
         open System.Diagnostics
         open System.Text.RegularExpressions
 
-        let extractCertHash (certUtilExeFilePath: string) (pfxFilePath: string) =
+        let getPfxCertHash (certutilExeFilePath: string) (pfxFilePath: string) =
             let psi =
                 ProcessStartInfo(
-                    FileName = certUtilExeFilePath,
-                    Arguments = sprintf "-dump %s" pfxFilePath,
+                    FileName               = certutilExeFilePath,
+                    Arguments              = sprintf "-dump %s" pfxFilePath,
                     RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden)
+                    UseShellExecute        = false,
+                    CreateNoWindow         = true,
+                    WindowStyle            = ProcessWindowStyle.Hidden)
             let proc = Process.Start(psi)
             let stdOut = proc.StandardOutput.ReadToEnd()
 
@@ -27,11 +27,21 @@
             |> (fun str -> str.Replace(" ", ""))
             |> (fun str -> str.ToUpperInvariant())
 
-        let isFileSignedByCertHash (filePath: string) (certHash: string) =
-            // TODO
-            false
+        let isFileSignedByCertHash (signtoolExeFilePath: string) (filePath: string) (certHash: string) =
+            let psi =
+                ProcessStartInfo(
+                    FileName               = signtoolExeFilePath,
+                    Arguments              = sprintf "verify /q /pa /sha1 %s \"%s\"" certHash filePath,
+                    RedirectStandardOutput = false,
+                    UseShellExecute        = false,
+                    CreateNoWindow         = true,
+                    WindowStyle            = ProcessWindowStyle.Hidden)
+            let proc = Process.Start(psi)
+            proc.WaitForExit()
 
-        let isFileSignedByPfx (certUtilExeFilePath: string) (pfxFilePath: string) (filePath: string) =
+            proc.ExitCode = 0
+
+        let isFileSignedByPfx (signtoolExeFilePath: string) (certutilExeFilePath: string) (pfxFilePath: string) (filePath: string) =
             pfxFilePath
-            |> extractCertHash certUtilExeFilePath
-            |> isFileSignedByCertHash filePath
+            |> getPfxCertHash certutilExeFilePath
+            |> isFileSignedByCertHash signtoolExeFilePath filePath
