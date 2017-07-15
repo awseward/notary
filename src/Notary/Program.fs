@@ -1,14 +1,10 @@
-﻿// Learn more about F# at http://fsharp.org
-// See the 'F# Tutorial' project for more help.
 
 open Notary
 open System
-
 let private _basicFail () =
     printfn "TODO: Usage"
     1
-
-let private _block () = Console.ReadLine()
+let private _block = Console.ReadLine >> ignore
 
 [<EntryPoint>]
 let main argv =
