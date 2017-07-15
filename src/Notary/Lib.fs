@@ -1,4 +1,4 @@
-﻿namespace Notary
+namespace Notary
 
     module Shell =
         open System.Diagnostics
