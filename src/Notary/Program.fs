@@ -1,4 +1,4 @@
-
+open Argu
 open Notary
 open System
 let private _basicFail () =
@@ -6,8 +6,31 @@ let private _basicFail () =
     1
 let private _block = Console.ReadLine >> ignore
 
+type DetectArgs =
+    | SignTool of path:string
+with
+    interface IArgParserTemplate with
+        member this.Usage =
+            match this with
+            | SignTool _ -> "Specify the path to your signtool.exe"
+
+and NotaryArgs =
+    | [<CliPrefix(CliPrefix.None)>] Detect of ParseResults<DetectArgs>
+with
+    interface IArgParserTemplate with
+        member this.Usage =
+            match this with
+            | Detect _ -> "Detect whether a file is already signed by the specified pfx file"
+
 [<EntryPoint>]
 let main argv =
+    let parser = ArgumentParser.Create<NotaryArgs>()
+
+    parser.PrintUsage()
+    |> printfn "%s"
+
+    printfn "wat"
+
     printfn "argv: %A" argv
 
     // TODO: Put proper CLI parsing in place
