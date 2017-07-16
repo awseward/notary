@@ -44,40 +44,23 @@ let main argv =
             | None ->
                 printUsageAndExitOne()
         | Some (Sign args) ->
-            printfn "Args: %A (Sign)" args
-            0
+            let maybePfx = args.TryGetResult <@ SignArgs.Pfx @>
+            let maybePassword = args.TryGetResult <@ SignArgs.Password @>
+            let maybeFiles = args.TryGetResult <@ SignArgs.Files @>
+
+            match maybePfx, maybePassword, maybeFiles with
+            | Some pfx, Some password, Some files ->
+                files
+                |> List.map (fun str -> str.Trim())
+                |> Array.ofList // TODO: Fix this type mismatch
+                |> Lib.signIfNotSigned signtool certutil pfx password
+
+                0
+            | _ ->
+                printUsageAndExitOne()
         | _ ->
             printUsageAndExitOne()
     with
     | :? ArguParseException as ex ->
         printfn "%s" ex.Message
         1
-
-    // // TODO: Put proper CLI parsing in place
-    // if Array.isEmpty argv then _basicFail()
-    // else
-    //     // TODO: Unhardcode these
-    //     let certutil = @"C:\WINDOWS\System32\certutil.exe"
-    //     let signtool = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
-
-    //     try
-    //         match Array.head argv with
-    //         | "ensureSigned" ->
-    //             let pfx       = argv.[1]
-    //             let password  = argv.[2]
-    //             let filePaths =
-    //                 argv
-    //                 |> Array.skip 3
-    //                 |> Array.map (fun str -> str.Trim())
-
-    //             Lib.signIfNotSigned signtool certutil pfx password filePaths
-
-    //             _block()
-    //             0
-    //         | _ ->
-    //             _basicFail()
-    //     with
-    //     | ex ->
-    //         printfn "%s" ex.Message
-    //         _block()
-    //         _basicFail()
