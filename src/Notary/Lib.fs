@@ -98,30 +98,35 @@ namespace Notary
                 |> Array.ofSeq
                 |> Array.partition (isFileSignedByPfx signtool certutil pfx)
 
-            printfn "doNotNeedSigning: %A" doNotNeedSigning
-            printfn "needSigning: %A" needSigning
+            match Array.length doNotNeedSigning with
+            | 0 -> ()
+            | skipCount ->
+                printfn "Skipping %d file(s) that have already been signed with %s" skipCount pfx
 
-            let timestampAlgo = "sha256"
-            let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
-            let filePathsAsSingleString =
-                needSigning
-                |> Array.map (sprintf "\"%s\"")
-                |> String.concat " "
+            if Array.isEmpty needSigning then
+                ()
+            else
+                let timestampAlgo = "sha256"
+                let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
+                let filePathsAsSingleString =
+                    needSigning
+                    |> Array.map (sprintf "\"%s\"")
+                    |> String.concat " "
 
-            let args =
-                sprintf
-                    "sign /v /as /td \"%s\" /tr \"%s\" /f \"%s\" /p \"%s\" %s"
-                    timestampAlgo
-                    timestampUrl
-                    pfx
-                    password
-                    filePathsAsSingleString
+                let args =
+                    sprintf
+                        "sign /v /as /td \"%s\" /tr \"%s\" /f \"%s\" /p \"%s\" %s"
+                        timestampAlgo
+                        timestampUrl
+                        pfx
+                        password
+                        filePathsAsSingleString
 
-            let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
-                args
-                |> Shell.run signtool
-                |> Shell.printCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p \"[FILTERED]\" ")))
+                let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
+                    args
+                    |> Shell.run signtool
+                    |> Shell.printCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
 
-            printfn "stdOut  : %s" stdOut
-            printfn "stdErr  : %s" stdErr
-            printfn "exitCode: %d" proc.ExitCode
+                printfn "stdOut  : %s" stdOut
+                printfn "stdErr  : %s" stdErr
+                printfn "exitCode: %d" proc.ExitCode
