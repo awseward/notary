@@ -48,6 +48,10 @@ with
 [<EntryPoint>]
 let main argv =
     let parser = ArgumentParser.Create<NotaryArgs>()
+    let printUsageAndExitOne () =
+        parser.PrintUsage()
+        |> printfn "%s"
+        1
     // TODO: Unhardcode these
     let certutil = @"C:\WINDOWS\System32\certutil.exe"
     let signtool = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
@@ -69,9 +73,7 @@ let main argv =
 
                 0
             | _ ->
-                parser.PrintUsage()
-                |> printfn "%s"
-                1
+                printUsageAndExitOne()
 
             // ----------------------------------------------------------------------------------------------
         | Some (Print args) ->
@@ -82,16 +84,12 @@ let main argv =
                 |> printfn "%s"
                 0
             | None ->
-                parser.PrintUsage()
-                |> printfn "%s"
-                1
+                printUsageAndExitOne()
         | Some (Sign args) ->
-            printfn "Args: %A (Sign)" args      
-            0  
+            printfn "Args: %A (Sign)" args
+            0
         | _ ->
-            parser.PrintUsage()
-            |> printfn "%s"
-            1
+            printUsageAndExitOne()
     with
     | :? ArguParseException as ex ->
         printfn "%s" ex.Message
