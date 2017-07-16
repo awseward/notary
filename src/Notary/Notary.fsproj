@@ -41,6 +41,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Lib.fs" />
+    <Compile Include="NotaryArgs.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
   </ItemGroup>
