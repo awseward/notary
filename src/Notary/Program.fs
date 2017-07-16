@@ -6,6 +6,10 @@ open System
 // TODO: Unhardcode these
 let private _certutil = @"C:\WINDOWS\System32\certutil.exe"
 let private _signtool = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
+let private _isFileSignedByPfx = Lib.isFileSignedByPfx _signtool _certutil
+let private _getPfxCertHash = Lib.getPfxCertHash _certutil
+let private _signIfNotSigned = Lib.signIfNotSigned _signtool _certutil
+
 
 [<EntryPoint>]
 let main argv =
@@ -24,7 +28,7 @@ let main argv =
 
             match maybePfx, maybeFile with
             | Some pfx, Some file ->
-                if Lib.isFileSignedByPfx _signtool _certutil pfx file then
+                if _isFileSignedByPfx pfx file then
                     printfn "Already signed"
                     0
                 else
@@ -37,7 +41,7 @@ let main argv =
             match args.TryGetResult <@ PrintArgs.Pfx @> with
             | Some pfx ->
                 pfx
-                |> Lib.getPfxCertHash _certutil
+                |> _getPfxCertHash
                 |> printfn "%s"
                 0
             | None ->
@@ -53,7 +57,7 @@ let main argv =
                 files
                 |> List.map (fun str -> str.Trim())
                 |> Array.ofList // TODO: Fix this type mismatch
-                |> Lib.signIfNotSigned _signtool _certutil pfx password
+                |> _signIfNotSigned pfx password
 
                 0
             | _ ->
