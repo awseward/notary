@@ -67,7 +67,6 @@ namespace Notary
             with
             | ex -> raise (NotaryException ex)
 
-
         let isFileSignedByCertHash signtool filePath certHash =
             let { proc = proc; stdOut = stdOut } =
                 filePath
@@ -93,10 +92,11 @@ namespace Notary
             |> isFileSignedByCertHash signtool filePath
 
         let signIfNotSigned signtool certutil pfx password filePaths =
+            let certHash = getPfxCertHash certutil pfx
             let (doNotNeedSigning, needSigning) =
                 filePaths
                 |> Array.ofSeq
-                |> Array.partition (isFileSignedByPfx signtool certutil pfx)
+                |> Array.partition (fun filePath -> isFileSignedByCertHash signtool filePath certHash)
 
             match Array.length doNotNeedSigning with
             | 0 -> ()
