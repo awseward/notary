@@ -7,6 +7,7 @@ open System.Runtime.InteropServices
 [<assembly: AssemblyTitle("Notary")>]
 [<assembly: AssemblyDescription("A simple tool to make code signing a little less painful")>]
 [<assembly: AssemblyProduct("Notary")>]
+[<assembly: AssemblyCompany("Drew Seward")>]
 [<assembly: AssemblyCopyright("Copyright © 2017")>]
 [<assembly: ComVisible(false)>]
 [<assembly: Guid("a6e9d01d-7f96-4535-808f-a6d32436a3d1")>]
