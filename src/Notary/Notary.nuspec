@@ -9,6 +9,7 @@
     <projectUrl>https://github.com/awseward/notary</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
+    <tags>signing signtool certutil</tags>
     <copyright>Copyright 2017</copyright>
   </metadata>
 </package>
