@@ -1,4 +1,5 @@
 framework: net462
 source https://www.nuget.org/api/v2
+nuget argu
 nuget FAKE
 nuget FSharp.Core

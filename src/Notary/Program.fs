@@ -1,59 +1,75 @@
-
+open Argu
 open Notary
+open Notary.CommandLine.Args
 open System
-let private _basicFail () =
-    printfn "TODO: Usage"
+
+// TODO: Unhardcode these
+let private _certutil = @"C:\WINDOWS\System32\certutil.exe"
+let private _signtool = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
+let private _isFileSignedByPfx = Lib.isFileSignedByPfx _signtool _certutil
+let private _getPfxCertHash = Lib.getPfxCertHash _certutil
+let private _signIfNotSigned = Lib.signIfNotSigned _signtool _certutil
+
+let _nonzeroExit (parser: ArgumentParser<'a>) =
+    parser.PrintUsage()
+    |> printfn "%s"
     1
-let private _block = Console.ReadLine >> ignore
+
+let _subcommandNonzeroExit<'a when 'a :> IArgParserTemplate> () =
+    ArgumentParser.Create<'a>()
+    |> _nonzeroExit
 
 [<EntryPoint>]
 let main argv =
-    printfn "argv: %A" argv
+    let parser = ArgumentParser.Create<NotaryArgs>()
+    try
+        let parseResults = parser.Parse argv
+        match parseResults.TryGetSubCommand() with
+        | Some (Detect args) ->
+            let maybePfx = args.TryGetResult <@ DetectArgs.Pfx @>
+            let maybeFile = args.TryGetResult <@ DetectArgs.File @>
 
-    // TODO: Put proper CLI parsing in place
-    if Array.isEmpty argv then _basicFail()
-    else
-        // TODO: Unhardcode these
-        let certutil = @"C:\WINDOWS\System32\certutil.exe"
-        let signtool = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
+            match maybePfx, maybeFile with
+            | Some pfx, Some file ->
+                if _isFileSignedByPfx pfx file then
+                    printfn "Already signed"
+                    0
+                else
+                    printfn "Not signed"
+                    1
+            | _ ->
+                _subcommandNonzeroExit<DetectArgs>()
 
-        try
-            match Array.head argv with
-            | "getPfxCertHash" ->
-                let pfx = argv.[1]
-
+        | Some (Print args) ->
+            match args.TryGetResult <@ PrintArgs.Pfx @> with
+            | Some pfx ->
                 pfx
-                |> Lib.getPfxCertHash certutil
+                |> _getPfxCertHash
                 |> printfn "%s"
-
-                _block()
                 0
-            | "checkIfAlreadySigned" ->
-                let pfx  = argv.[1]
-                let file = argv.[2]
+            | None ->
+                _subcommandNonzeroExit<PrintArgs>()
 
-                file
-                |> Lib.isFileSignedByPfx signtool certutil pfx
-                |> printfn "%b"
+        | Some (Sign args) ->
+            let maybePfx = args.TryGetResult <@ SignArgs.Pfx @>
+            let maybePassword = args.TryGetResult <@ SignArgs.Password @>
+            let maybeFiles = args.TryGetResult <@ SignArgs.Files @>
 
-                _block()
-                0
-            | "ensureSigned" ->
-                let pfx       = argv.[1]
-                let password  = argv.[2]
-                let filePaths =
-                    argv
-                    |> Array.skip 3
-                    |> Array.map (fun str -> str.Trim())
+            match maybePfx, maybePassword, maybeFiles with
+            | Some pfx, Some password, Some files ->
+                files
+                |> List.map (fun str -> str.Trim())
+                |> _signIfNotSigned pfx password
 
-                Lib.signIfNotSigned signtool certutil pfx password filePaths
-
-                _block()
                 0
             | _ ->
-                _basicFail()
-        with
-        | ex ->
-            printfn "%s" ex.Message
-            _block()
-            _basicFail()
+                _subcommandNonzeroExit<SignArgs>()
+
+        | Some (Certutil _)
+        | Some (Signtool _)
+        | None ->
+                _nonzeroExit parser
+    with
+    | :? ArguParseException as ex ->
+        printfn "%s" ex.Message
+        1
