@@ -10,15 +10,18 @@ let private _isFileSignedByPfx = Lib.isFileSignedByPfx _signtool _certutil
 let private _getPfxCertHash = Lib.getPfxCertHash _certutil
 let private _signIfNotSigned = Lib.signIfNotSigned _signtool _certutil
 
+let _nonzeroExit (parser: ArgumentParser<'a>) =
+    parser.PrintUsage()
+    |> printfn "%s"
+    1
+
+let _subcommandNonzeroExit<'a when 'a :> IArgParserTemplate> () =
+    ArgumentParser.Create<'a>()
+    |> _nonzeroExit
 
 [<EntryPoint>]
 let main argv =
     let parser = ArgumentParser.Create<NotaryArgs>()
-    let printUsageAndExitOne () =
-        parser.PrintUsage()
-        |> printfn "%s"
-        1
-
     try
         let parseResults = parser.Parse argv
         match parseResults.TryGetSubCommand() with
@@ -35,7 +38,7 @@ let main argv =
                     printfn "Not signed"
                     1
             | _ ->
-                printUsageAndExitOne()
+                _subcommandNonzeroExit<DetectArgs>()
 
         | Some (Print args) ->
             match args.TryGetResult <@ PrintArgs.Pfx @> with
@@ -45,7 +48,7 @@ let main argv =
                 |> printfn "%s"
                 0
             | None ->
-                printUsageAndExitOne()
+                _subcommandNonzeroExit<PrintArgs>()
 
         | Some (Sign args) ->
             let maybePfx = args.TryGetResult <@ SignArgs.Pfx @>
@@ -60,12 +63,12 @@ let main argv =
 
                 0
             | _ ->
-                printUsageAndExitOne()
+                _subcommandNonzeroExit<SignArgs>()
 
         | Some (Certutil _)
         | Some (Signtool _)
         | None ->
-            printUsageAndExitOne()
+                _nonzeroExit parser
     with
     | :? ArguParseException as ex ->
         printfn "%s" ex.Message
