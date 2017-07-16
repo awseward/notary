@@ -32,18 +32,25 @@ namespace Notary
         open System.Text.RegularExpressions
         open Shell
 
+        // NOTE: This is probably just a temporary crutch
+        exception NotaryException of Exception
+
         let getPfxCertHash certutil pfx =
             let { stdOut = stdOut } = Shell.run certutil (sprintf "-dump %s" pfx)
 
             // This could definitely be loads better
-            stdOut
-            |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
-            |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
-            |> Seq.last
-            |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
-            |> (fun str -> str.Trim())
-            |> (fun str -> str.Replace(" ", ""))
-            |> (fun str -> str.ToUpperInvariant())
+            try
+                stdOut
+                |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
+                |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
+                |> Seq.last
+                |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
+                |> (fun str -> str.Trim())
+                |> (fun str -> str.Replace(" ", ""))
+                |> (fun str -> str.ToUpperInvariant())
+            with
+            | ex -> raise (NotaryException ex)
+
 
         let isFileSignedByCertHash signtool filePath certHash =
             let { proc = proc; stdOut = stdOut } =
