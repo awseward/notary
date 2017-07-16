@@ -71,6 +71,7 @@ namespace Notary
         let signIfNotSigned signtool certutil pfx password filePaths =
             let (doNotNeedSigning, needSigning) =
                 filePaths
+                |> Array.ofSeq
                 |> Array.partition (isFileSignedByPfx signtool certutil pfx)
 
             printfn "doNotNeedSigning: %A" doNotNeedSigning

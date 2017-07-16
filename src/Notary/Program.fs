@@ -56,7 +56,6 @@ let main argv =
             | Some pfx, Some password, Some files ->
                 files
                 |> List.map (fun str -> str.Trim())
-                |> Array.ofList // TODO: Fix this type mismatch
                 |> _signIfNotSigned pfx password
 
                 0
