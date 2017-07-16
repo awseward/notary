@@ -6,13 +6,13 @@ module Args =
 
     type DetectArgs =
     | [<Mandatory>] Pfx of ``pfx filepath``:string
-    | [<MainCommand; ExactlyOnce; Last>] Files of ``files to check``:string list
+    | [<MainCommand; ExactlyOnce; Last>] File of ``file to check``:string
     with
         interface IArgParserTemplate with
             member this.Usage =
                 match this with
                 | Pfx _ -> "pfx filepath"
-                | Files _ -> "files which will be checked for having been signed by the given pfx file"
+                | File _ -> "file which will be checked for having been signed by the given pfx file"
     and PrintArgs =
     | [<MainCommand; ExactlyOnce; Last>] Pfx of ``pfx filepath``:string
     with
