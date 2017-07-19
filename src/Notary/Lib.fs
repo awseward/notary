@@ -12,8 +12,9 @@ module Lib =
         let { stdOut = stdOut } =
             pfx
             |> sprintf "-dump %s"
-            |> Shell.run certutil
-            |> Shell.printCommand None
+            |> Shell.createStartInfo certutil
+            |> Shell.printFilteredCommand None
+            |> Shell.runSync
 
         // This could definitely be loads better
         try
@@ -32,8 +33,9 @@ module Lib =
         let { proc = proc; stdOut = stdOut } =
             filePath
             |> sprintf "verify /v /all /pa /sha1 %s \"%s\"" certHash
-            |> Shell.run signtool
-            |> Shell.printCommand None
+            |> Shell.createStartInfo signtool
+            |> Shell.printFilteredCommand None
+            |> Shell.runSync
 
         proc.ExitCode = 0 ||
             // This doesn't really feel great, but I don't see another way right now
@@ -85,9 +87,10 @@ module Lib =
 
             let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
                 args
-                |> Shell.run signtool
-                |> Shell.printCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
+                |> Shell.createStartInfo signtool
+                |> Shell.printFilteredCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
+                |> Shell.runSync
 
-            printfn "stdOut  : %s" stdOut
-            printfn "stdErr  : %s" stdErr
-            printfn "exitCode: %d" proc.ExitCode
+            match proc.ExitCode with
+            | 0 -> printfn "%s" stdOut
+            | exitCode -> printfn "ERROR (exit code %d): %s" exitCode stdErr
