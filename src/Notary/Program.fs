@@ -70,6 +70,7 @@ let main argv =
         | None ->
                 _nonzeroExit parser
     with
+    | Lib.NotaryProcessNonzeroException -> 1
     | Lib.NotaryException ex ->
         printfn "ERROR: %s" ex.Message
         _nonzeroExit parser

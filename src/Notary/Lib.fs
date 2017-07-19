@@ -2,30 +2,40 @@ namespace Notary
 
 module Lib =
     open System
+    open System.Diagnostics
     open System.Text.RegularExpressions
     open Shell
 
     // NOTE: This is probably just a temporary crutch
+    exception NotaryProcessNonzeroException
     exception NotaryException of Exception
 
-    let getPfxCertHash certutil pfx =
-        let { stdOut = stdOut } =
-            pfx
-            |> sprintf "-dump %s"
-            |> Shell.createStartInfo certutil
-            |> Shell.printFilteredCommand None
-            |> Shell.runSync
+    let private _treatNonzeroAsFatal (proc: Process) stdOut stdErr =
+        match proc.ExitCode with
+        | 0 -> printfn "%s" stdOut // This whole thing really needs to get some notion of verbose / quiet
+        | exitCode ->
+            printfn "ERROR (%s exit code %d): %s" proc.StartInfo.FileName proc.ExitCode stdErr
+            raise NotaryProcessNonzeroException
 
-        // This could definitely be loads better
+    let getPfxCertHash certutil pfx =
         try
+            let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
+                pfx
+                |> sprintf "-dump %s"
+                |> Shell.createStartInfo certutil
+                |> Shell.printFilteredCommand None
+                |> Shell.runSync
+
+            _treatNonzeroAsFatal proc stdOut stdErr
+
             stdOut
-            |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
-            |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
-            |> Seq.last
-            |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
-            |> (fun str -> str.Trim())
-            |> (fun str -> str.Replace(" ", ""))
-            |> (fun str -> str.ToUpperInvariant())
+                |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
+                |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
+                |> Seq.last
+                |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
+                |> (fun str -> str.Trim())
+                |> (fun str -> str.Replace(" ", ""))
+                |> (fun str -> str.ToUpperInvariant())
         with
         | ex -> raise (NotaryException ex)
 
@@ -56,7 +66,7 @@ module Lib =
 
     let signIfNotSigned signtool certutil pfx password filePaths =
         let certHash = getPfxCertHash certutil pfx
-        let (doNotNeedSigning, needSigning) =
+        let doNotNeedSigning, needSigning =
             filePaths
             |> Array.ofSeq
             |> Array.partition (fun filePath -> isFileSignedByCertHash signtool filePath certHash)
@@ -91,6 +101,4 @@ module Lib =
                 |> Shell.printFilteredCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
                 |> Shell.runSync
 
-            match proc.ExitCode with
-            | 0 -> printfn "%s" stdOut
-            | exitCode -> printfn "ERROR (exit code %d): %s" exitCode stdErr
+            _treatNonzeroAsFatal proc stdOut stdErr
