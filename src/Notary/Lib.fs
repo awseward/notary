@@ -23,13 +23,13 @@ module Lib =
             |> ignore
 
             stdOut
-                |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
-                |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
-                |> Seq.last
-                |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
-                |> (fun str -> str.Trim())
-                |> (fun str -> str.Replace(" ", ""))
-                |> (fun str -> str.ToUpperInvariant())
+            |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
+            |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
+            |> Seq.last
+            |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
+            |> (fun str -> str.Trim())
+            |> (fun str -> str.Replace(" ", ""))
+            |> (fun str -> str.ToUpperInvariant())
         with
         | ex -> raise (NotaryException ex)
 
