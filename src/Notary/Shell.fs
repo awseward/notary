@@ -4,6 +4,8 @@ module Shell =
     open System
     open System.Diagnostics
 
+    exception NonzeroExitException of int
+
     type ProcessResult =
         {
             proc  : Process
@@ -49,6 +51,17 @@ module Shell =
         |> printfn "%s"
 
         startInfo
+
+    let printIfZeroExit message (proc: Process) =
+        if proc.ExitCode = 0 then printfn "%s" message else ()
+        proc
+
+    let printAndRaiseIfNonzeroExit message (proc: Process) =
+        match proc.ExitCode with
+        | 0 -> proc
+        | exitCode ->
+            printfn "ERROR (%s exit code %d): %s" proc.StartInfo.FileName proc.ExitCode message
+            raise (NonzeroExitException exitCode)
 
     let run filename arguments =
         arguments

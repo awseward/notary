@@ -7,15 +7,7 @@ module Lib =
     open Shell
 
     // NOTE: This is probably just a temporary crutch
-    exception NotaryProcessNonzeroException
     exception NotaryException of Exception
-
-    let private _treatNonzeroAsFatal (proc: Process) stdOut stdErr =
-        match proc.ExitCode with
-        | 0 -> printfn "%s" stdOut // This whole thing really needs to get some notion of verbose / quiet
-        | exitCode ->
-            printfn "ERROR (%s exit code %d): %s" proc.StartInfo.FileName proc.ExitCode stdErr
-            raise NotaryProcessNonzeroException
 
     let getPfxCertHash certutil pfx =
         try
@@ -26,7 +18,9 @@ module Lib =
                 |> Shell.printFilteredCommand None
                 |> Shell.runSync
 
-            _treatNonzeroAsFatal proc stdOut stdErr
+            proc
+            |> Shell.printAndRaiseIfNonzeroExit stdErr
+            |> ignore
 
             stdOut
                 |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
@@ -101,4 +95,7 @@ module Lib =
                 |> Shell.printFilteredCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
                 |> Shell.runSync
 
-            _treatNonzeroAsFatal proc stdOut stdErr
+            proc
+            |> Shell.printIfZeroExit stdOut
+            |> Shell.printAndRaiseIfNonzeroExit stdErr
+            |> ignore
