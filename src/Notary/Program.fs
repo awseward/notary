@@ -34,7 +34,7 @@ let main argv =
         | Some (Verbose)
         | Some (Quiet)
         | None ->
-                _nonzeroExit parser
+            _nonzeroExit parser
 
         | Some (Detect args) ->
             let maybePfx = args.TryGetResult <@ DetectArgs.Pfx @>

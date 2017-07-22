@@ -37,8 +37,8 @@ module Args =
     | [<CliPrefix(CliPrefix.None)>] Sign of ParseResults<SignArgs>
     | [<Inherit>] Certutil of path:string
     | [<Inherit>] Signtool of path:string
-    | [<Inherit; AltCommandLine("v")>] Verbose
-    | [<Inherit; AltCommandLine("q")>] Quiet
+    | [<Inherit; AltCommandLine("-v")>] Verbose
+    | [<Inherit; AltCommandLine("-q")>] Quiet
     with
         interface IArgParserTemplate with
             member this.Usage =
