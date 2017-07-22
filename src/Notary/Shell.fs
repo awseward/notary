@@ -66,12 +66,3 @@ module Shell =
         arguments
         |> createStartInfo filename
         |> runSync
-
-    [<Obsolete("Caller is probably better off printing command before it has already become a result")>]
-    let printCommand filter (procResult: ProcessResult) =
-        procResult
-        |> (fun { proc = proc } -> proc.StartInfo)
-        |> printCommandFiltered filter
-        |> ignore
-
-        procResult
