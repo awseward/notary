@@ -2,6 +2,7 @@ namespace Notary
 
 module Lib =
     open System
+    open System.Diagnostics
     open System.Text.RegularExpressions
     open Shell
 
@@ -9,14 +10,18 @@ module Lib =
     exception NotaryException of Exception
 
     let getPfxCertHash certutil pfx =
-        let { stdOut = stdOut } =
-            pfx
-            |> sprintf "-dump %s"
-            |> Shell.run certutil
-            |> Shell.printCommand None
-
-        // This could definitely be loads better
         try
+            let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
+                pfx
+                |> sprintf "-dump %s"
+                |> Shell.createStartInfo certutil
+                |> Shell.printFilteredCommand None
+                |> Shell.runSync
+
+            proc
+            |> Shell.printAndRaiseIfNonzeroExit stdErr
+            |> ignore
+
             stdOut
             |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
             |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
@@ -32,8 +37,9 @@ module Lib =
         let { proc = proc; stdOut = stdOut } =
             filePath
             |> sprintf "verify /v /all /pa /sha1 %s \"%s\"" certHash
-            |> Shell.run signtool
-            |> Shell.printCommand None
+            |> Shell.createStartInfo signtool
+            |> Shell.printFilteredCommand None
+            |> Shell.runSync
 
         proc.ExitCode = 0 ||
             // This doesn't really feel great, but I don't see another way right now
@@ -54,7 +60,7 @@ module Lib =
 
     let signIfNotSigned signtool certutil pfx password filePaths =
         let certHash = getPfxCertHash certutil pfx
-        let (doNotNeedSigning, needSigning) =
+        let doNotNeedSigning, needSigning =
             filePaths
             |> Array.ofSeq
             |> Array.partition (fun filePath -> isFileSignedByCertHash signtool filePath certHash)
@@ -85,9 +91,11 @@ module Lib =
 
             let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
                 args
-                |> Shell.run signtool
-                |> Shell.printCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
+                |> Shell.createStartInfo signtool
+                |> Shell.printFilteredCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
+                |> Shell.runSync
 
-            printfn "stdOut  : %s" stdOut
-            printfn "stdErr  : %s" stdErr
-            printfn "exitCode: %d" proc.ExitCode
+            proc
+            |> Shell.printIfZeroExit stdOut
+            |> Shell.printAndRaiseIfNonzeroExit stdErr
+            |> ignore
