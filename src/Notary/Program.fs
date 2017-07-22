@@ -25,6 +25,17 @@ let main argv =
     try
         let parseResults = parser.Parse argv
         match parseResults.TryGetSubCommand() with
+        // It would be nice if these were actually just filtered from
+        // TryGetSubCommand. I don't want to just add a catch-all,
+        // because then I won't get warnings if I add an actual
+        // subcommand without handling it here.
+        | Some (Certutil _)
+        | Some (Signtool _)
+        | Some (Verbose)
+        | Some (Quiet)
+        | None ->
+            _nonzeroExit parser
+
         | Some (Detect args) ->
             let maybePfx = args.TryGetResult <@ DetectArgs.Pfx @>
             let maybeFile = args.TryGetResult <@ DetectArgs.File @>
@@ -64,11 +75,6 @@ let main argv =
                 0
             | _ ->
                 _subcommandNonzeroExit<SignArgs>()
-
-        | Some (Certutil _)
-        | Some (Signtool _)
-        | None ->
-                _nonzeroExit parser
     with
     | Shell.NonzeroExitException exitCode -> exitCode
     | Lib.NotaryException ex ->

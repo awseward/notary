@@ -37,6 +37,8 @@ module Args =
     | [<CliPrefix(CliPrefix.None)>] Sign of ParseResults<SignArgs>
     | [<Inherit>] Certutil of path:string
     | [<Inherit>] Signtool of path:string
+    | [<Inherit; AltCommandLine("-v")>] Verbose
+    | [<Inherit; AltCommandLine("-q")>] Quiet
     with
         interface IArgParserTemplate with
             member this.Usage =
@@ -46,3 +48,5 @@ module Args =
                 | Sign _ -> "sign files with the given pfx certificate only if they're not already signed by that same certificate"
                 | Certutil _ -> "certutil.exe filepath"
                 | Signtool _ -> "signtool.exe filepath"
+                | Verbose -> "(TODO) Print more detailed output to console"
+                | Quiet -> "(TODO) Print no output to console"
