@@ -48,5 +48,5 @@ module Args =
                 | Sign _ -> "sign files with the given pfx certificate only if they're not already signed by that same certificate"
                 | Certutil _ -> "certutil.exe filepath"
                 | Signtool _ -> "signtool.exe filepath"
-                | Verbose -> "Print all output to console"
+                | Verbose -> "Print more detailed output to console"
                 | Quiet -> "Print no output to console"
