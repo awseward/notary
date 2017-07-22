@@ -40,17 +40,16 @@ module Shell =
     let filterCommand filter startInfo =
         startInfo
         |> getCommandText
-        |> (fun str ->
-                match filter with
-                | Some fn -> fn str
-                | None -> str)
+        |> filter
 
-    let printFilteredCommand filter startInfo =
+    let printCommandFiltered filter startInfo =
         startInfo
         |> filterCommand filter
         |> printfn "%s"
 
         startInfo
+
+    let printCommand = printCommandFiltered id
 
     let printIfZeroExit message (proc: Process) =
         if proc.ExitCode = 0 then printfn "%s" message else ()
@@ -72,7 +71,7 @@ module Shell =
     let printCommand filter (procResult: ProcessResult) =
         procResult
         |> (fun { proc = proc } -> proc.StartInfo)
-        |> printFilteredCommand filter
+        |> printCommandFiltered filter
         |> ignore
 
         procResult

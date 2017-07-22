@@ -15,7 +15,7 @@ module Lib =
                 pfx
                 |> sprintf "-dump %s"
                 |> Shell.createStartInfo certutil
-                |> Shell.printFilteredCommand None
+                |> Shell.printCommand
                 |> Shell.runSync
 
             proc
@@ -38,7 +38,7 @@ module Lib =
             filePath
             |> sprintf "verify /v /all /pa /sha1 %s \"%s\"" certHash
             |> Shell.createStartInfo signtool
-            |> Shell.printFilteredCommand None
+            |> Shell.printCommand
             |> Shell.runSync
 
         proc.ExitCode = 0 ||
@@ -92,7 +92,7 @@ module Lib =
             let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
                 args
                 |> Shell.createStartInfo signtool
-                |> Shell.printFilteredCommand (Some (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] ")))
+                |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] "))
                 |> Shell.runSync
 
             proc
