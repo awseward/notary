@@ -46,6 +46,14 @@
     <Compile Include="Program.fs" />
     <None Include="App.config" />
   </ItemGroup>
+  <Target Name="PrintTargetsInfo">
+    <!-- This target was added to help diagnosing when the Microsoft.FSharp.Targets file is not in the right place -->
+    <Message Text="MSBuildExtensionsPath: $(MSBuildExtensionsPath)" Importance="high"/>
+    <Message Text="MSBuildExtensionsPath32: $(MSBuildExtensionsPath32)" Importance="high"/>
+    <Message Text="VisualStudioVersion: $(VisualStudioVersion)" Importance="high" />
+    <Message Text="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets" Importance="high" />
+    <Message Text="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\4.0\Framework\v4.0\Microsoft.FSharp.Targets" Importance="high" />
+  </Target>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
     <When Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets')">
