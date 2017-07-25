@@ -38,11 +38,12 @@ let main argv =
 
         | Some (Detect args) ->
             let maybePfx = args.TryGetResult <@ DetectArgs.Pfx @>
+            let maybePassword = Some "TODO"
             let maybeFile = args.TryGetResult <@ DetectArgs.File @>
 
-            match maybePfx, maybeFile with
-            | Some pfx, Some file ->
-                if _isFileSignedByPfx pfx file then
+            match maybePfx, maybePassword, maybeFile with
+            | Some pfx, Some password, Some file ->
+                if _isFileSignedByPfx password pfx file then
                     printfn "Already signed"
                     0
                 else
@@ -52,13 +53,15 @@ let main argv =
                 _subcommandNonzeroExit<DetectArgs>()
 
         | Some (Print args) ->
-            match args.TryGetResult <@ PrintArgs.Pfx @> with
-            | Some pfx ->
+            let maybePassword = Some "TODO"
+
+            match args.TryGetResult <@ PrintArgs.Pfx @>, maybePassword with
+            | Some pfx, Some password ->
                 pfx
-                |> _getPfxCertHash
+                |> _getPfxCertHash password
                 |> printfn "%s"
                 0
-            | None ->
+            | _ ->
                 _subcommandNonzeroExit<PrintArgs>()
 
         | Some (Sign args) ->

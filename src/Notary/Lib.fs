@@ -9,13 +9,13 @@ module Lib =
     // NOTE: This is probably just a temporary crutch
     exception NotaryException of Exception
 
-    let getPfxCertHash certutil pfx =
+    let getPfxCertHash certutil password pfx =
         try
             let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
                 pfx
-                |> sprintf "-dump %s"
+                |> sprintf "-dump -p \"%s\" %s" password
                 |> Shell.createStartInfo certutil
-                |> Shell.printCommand
+                |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "-p [^ ]+ ", "-p [FILTERED] "))
                 |> Shell.runSync
 
             proc
@@ -53,13 +53,13 @@ module Lib =
             |> int
             |> fun i -> i <> 0
 
-    let isFileSignedByPfx signtool certutil pfx filePath =
+    let isFileSignedByPfx signtool certutil password pfx filePath =
         pfx
-        |> getPfxCertHash certutil
+        |> getPfxCertHash certutil password
         |> isFileSignedByCertHash signtool filePath
 
     let signIfNotSigned signtool certutil pfx password filePaths =
-        let certHash = getPfxCertHash certutil pfx
+        let certHash = getPfxCertHash certutil password pfx
         let doNotNeedSigning, needSigning =
             filePaths
             |> Array.ofSeq
