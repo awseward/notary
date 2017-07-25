@@ -14,11 +14,12 @@ Target "Build:Release" (fun _ ->
 
 datNET.Targets.initialize (fun p ->
     { p with
+        AccessKey             = environVar "BUGSNAG_NET_NUGET_API_KEY"
         AssemblyInfoFilePaths = ["src/Notary/AssemblyInfo.fs"]
-        Project = "Notary"
-        ProjectFilePath = Some "src/Notary/Notary.fsproj"
-        OutputPath = "."
-        WorkingDir = "."
+        Project               = "Notary"
+        ProjectFilePath       = Some "src/Notary/Notary.fsproj"
+        OutputPath            = "."
+        WorkingDir            = "."
     }
 )
 
