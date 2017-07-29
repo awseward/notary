@@ -37,48 +37,35 @@ let main argv =
             _nonzeroExit parser
 
         | Some (Detect args) ->
-            let maybePfx = args.TryGetResult <@ DetectArgs.Pfx @>
-            let maybePassword = args.TryGetResult <@ DetectArgs.Password @>
-            let maybeFile = args.TryGetResult <@ DetectArgs.File @>
+            let pfx = args.GetResult <@ DetectArgs.Pfx @>
+            let password = args.GetResult <@ DetectArgs.Password @>
+            let file = args.GetResult <@ DetectArgs.File @>
 
-            match maybePfx, maybePassword, maybeFile with
-            | Some pfx, Some password, Some file ->
-                if _isFileSignedByPfx password pfx file then
-                    printfn "Already signed"
-                    0
-                else
-                    printfn "Not signed"
-                    1
-            | _ ->
-                _subcommandNonzeroExit<DetectArgs>()
+            if _isFileSignedByPfx password pfx file then
+                printfn "Already signed"
+                0
+            else
+                printfn "Not signed"
+                1
 
         | Some (Print args) ->
-            let maybePassword = args.TryGetResult <@ PrintArgs.Password @>
-            let maybePfx = args.TryGetResult <@ PrintArgs.Pfx @>
+            let password = args.GetResult <@ PrintArgs.Password @>
+            let pfx = args.GetResult <@ PrintArgs.Pfx @>
 
-            match maybePassword, maybePfx with
-            | Some password, Some pfx ->
-                pfx
-                |> _getPfxCertHash password
-                |> printfn "%s"
-                0
-            | _ ->
-                _subcommandNonzeroExit<PrintArgs>()
+            pfx
+            |> _getPfxCertHash password
+            |> printfn "%s"
+            0
 
         | Some (Sign args) ->
-            let maybePfx = args.TryGetResult <@ SignArgs.Pfx @>
-            let maybePassword = args.TryGetResult <@ SignArgs.Password @>
-            let maybeFiles = args.TryGetResult <@ SignArgs.Files @>
+            let pfx = args.GetResult <@ SignArgs.Pfx @>
+            let password = args.GetResult <@ SignArgs.Password @>
+            let files = args.GetResult <@ SignArgs.Files @>
 
-            match maybePfx, maybePassword, maybeFiles with
-            | Some pfx, Some password, Some files ->
-                files
-                |> List.map (fun str -> str.Trim())
-                |> _signIfNotSigned pfx password
-
-                0
-            | _ ->
-                _subcommandNonzeroExit<SignArgs>()
+            files
+            |> List.map (fun str -> str.Trim())
+            |> _signIfNotSigned pfx password
+            0
     with
     | Shell.NonzeroExitException exitCode -> exitCode
     | Lib.NotaryException ex ->
