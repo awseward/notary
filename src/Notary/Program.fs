@@ -38,7 +38,7 @@ let main argv =
 
         | Some (Detect args) ->
             let maybePfx = args.TryGetResult <@ DetectArgs.Pfx @>
-            let maybePassword = Some "TODO"
+            let maybePassword = args.TryGetResult <@ DetectArgs.Password @>
             let maybeFile = args.TryGetResult <@ DetectArgs.File @>
 
             match maybePfx, maybePassword, maybeFile with
@@ -53,10 +53,11 @@ let main argv =
                 _subcommandNonzeroExit<DetectArgs>()
 
         | Some (Print args) ->
-            let maybePassword = Some "TODO"
+            let maybePassword = args.TryGetResult <@ PrintArgs.Password @>
+            let maybePfx = args.TryGetResult <@ PrintArgs.Pfx @>
 
-            match args.TryGetResult <@ PrintArgs.Pfx @>, maybePassword with
-            | Some pfx, Some password ->
+            match maybePassword, maybePfx with
+            | Some password, Some pfx ->
                 pfx
                 |> _getPfxCertHash password
                 |> printfn "%s"
