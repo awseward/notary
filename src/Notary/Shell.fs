@@ -59,7 +59,7 @@ module Shell =
         match proc.ExitCode with
         | 0 -> proc
         | exitCode ->
-            printfn "ERROR (%s exit code %d): %s" proc.StartInfo.FileName proc.ExitCode message
+            printfn "ERROR (%s exit code: %d): %s" proc.StartInfo.FileName proc.ExitCode message
             raise (NonzeroExitException exitCode)
 
     let run filename arguments =
