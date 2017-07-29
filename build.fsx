@@ -15,9 +15,9 @@ Target "Build:Release" (fun _ ->
 Target "Package:NuGetFail" (fun _ ->
   @"
 
-  Packaging with NuGet does not work. Please use paket.
+  Packaging with NuGet does not work. Please prefer Paket:* FAKE targets, or use paket.
 
-  Usage:
+  Paket usage:
     .paket/paket.exe pack .
     .paket/paket.exe push --api-key <API_KEY> <NUPKG_FILE>
 
@@ -36,10 +36,14 @@ datNET.Targets.initialize (fun p ->
     }
 )
 
+let paketOutputDir = ".dist"
+
 Target "Paket:Pack" (fun _ ->
+    FileHelper.CleanDir paketOutputDir
+
     Paket.Pack <| fun p ->
         { p with
-            OutputPath = "."
+            OutputPath = paketOutputDir
         }
 )
 
@@ -47,13 +51,15 @@ Target "Paket:Push" (fun _ ->
     Paket.Push <| fun p ->
         { p with
             ApiKey = environVar "BUGSNAG_NET_NUGET_API_KEY"
+            WorkingDir = paketOutputDir
         }
 )
 
+"Paket:Pack" <== ["Build:Release"]
 "Paket:Push" <== ["Paket:Pack"]
 
 // Deprecated
-"Package:Project" <== ["Build:Release"; "Package:NuGetFail"]
+"Package:Project" <== ["Package:NuGetFail"; "Build:Release"]
 "Publish" <== ["Package:Project"]
 
 RunTargetOrDefault "Build:Release"
