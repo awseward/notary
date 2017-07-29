@@ -36,6 +36,23 @@ datNET.Targets.initialize (fun p ->
     }
 )
 
+Target "Paket:Pack" (fun _ ->
+    Paket.Pack <| fun p ->
+        { p with
+            OutputPath = "."
+        }
+)
+
+Target "Paket:Push" (fun _ ->
+    Paket.Push <| fun p ->
+        { p with
+            ApiKey = environVar "BUGSNAG_NET_NUGET_API_KEY"
+        }
+)
+
+"Paket:Push" <== ["Paket:Pack"]
+
+// Deprecated
 "Package:Project" <== ["Build:Release"; "Package:NuGetFail"]
 "Publish" <== ["Package:Project"]
 
