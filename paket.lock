@@ -3,6 +3,6 @@ NUGET
   remote: https://www.nuget.org/api/v2
     Argu (3.7)
     FAKE (4.63)
-    FSharp.Core (4.2.2)
+    FSharp.Core (4.2.3)
     FSharp.FakeTargets (0.11.1)
-    NuGet.CommandLine (4.1)
+    NuGet.CommandLine (4.3)
