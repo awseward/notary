@@ -74,6 +74,7 @@ module Lib =
             ()
         else
             let timestampAlgo = "sha256"
+            let digestAlgo    = "sha256"
             let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
             let filePathsAsSingleString =
                 needSigning
@@ -82,7 +83,8 @@ module Lib =
 
             let args =
                 sprintf
-                    "sign /v /as /td \"%s\" /tr \"%s\" /f \"%s\" /p \"%s\" %s"
+                    "sign /v /as /fd \"%s\" /td \"%s\" /tr \"%s\" /f \"%s\" /p \"%s\" %s"
+                    digestAlgo
                     timestampAlgo
                     timestampUrl
                     pfx
