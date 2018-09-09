@@ -30,28 +30,21 @@ let private _asToolPaths (toolPathOptions: ToolPathOptions) : ToolPaths =
   }
 let defaultToolPathOptions = _asToolPathOptions defaultToolPaths
 
-let private _isFileSignedByPfx2 toolPathOptions =
+let private _isFileSignedByPfx toolPathOptions =
   toolPathOptions
   |> _asToolPaths
   |> fun conf -> Lib.isFileSignedByPfx conf.signtoolPath conf.certUtilPath
 
-let private _getPfxCertHash2 toolPathOptions =
+let private _getPfxCertHash toolPathOptions =
   toolPathOptions
   |> _asToolPaths
   |> fun conf -> conf.certUtilPath
   |> Lib.getPfxCertHash
 
-let private _signIfNotSigned2 toolPathOptions =
+let private _signIfNotSigned toolPathOptions =
   toolPathOptions
   |> _asToolPaths
   |> fun conf -> Lib.signIfNotSigned conf.signtoolPath conf.certUtilPath
-
-[<Obsolete("Prefer _isFileSignedByPfx2")>]
-let private _isFileSignedByPfx = defaultToolPathOptions |> _isFileSignedByPfx2
-[<Obsolete("Prefer _getPfxCertHash2")>]
-let private _getPfxCertHash = defaultToolPathOptions |> _getPfxCertHash2
-[<Obsolete("Prefer _signIfNotSigned2")>]
-let private _signIfNotSigned = defaultToolPathOptions |> _signIfNotSigned2
 
 let _nonzeroExit (parser: ArgumentParser<'a>) =
     parser.PrintUsage()
@@ -62,11 +55,18 @@ let _subcommandNonzeroExit<'a when 'a :> IArgParserTemplate> () =
     ArgumentParser.Create<'a>()
     |> _nonzeroExit
 
+let private _getToolPathOptions (parseResults: ParseResults<NotaryArgs>) =
+  {
+    ToolPathOptions.signtoolPath = parseResults.TryGetResult <@ NotaryArgs.Signtool @>
+    certUtilPath                 = parseResults.TryGetResult <@ NotaryArgs.Certutil @>
+  }
+
 [<EntryPoint>]
 let main argv =
     let parser = ArgumentParser.Create<NotaryArgs>()
     try
         let parseResults = parser.Parse argv
+        let toolPathOptions = _getToolPathOptions parseResults
         match parseResults.TryGetSubCommand() with
         // It would be nice if these were actually just filtered from
         // TryGetSubCommand. I don't want to just add a catch-all,
@@ -84,7 +84,7 @@ let main argv =
             let password = args.GetResult <@ DetectArgs.Password @>
             let file = args.GetResult <@ DetectArgs.File @>
 
-            if _isFileSignedByPfx password pfx file then
+            if _isFileSignedByPfx toolPathOptions password pfx file then
                 printfn "Already signed"
                 0
             else
@@ -96,7 +96,7 @@ let main argv =
             let pfx = args.GetResult <@ PrintArgs.Pfx @>
 
             pfx
-            |> _getPfxCertHash password
+            |> _getPfxCertHash toolPathOptions password
             |> printfn "%s"
             0
 
@@ -107,7 +107,7 @@ let main argv =
 
             files
             |> List.map (fun str -> str.Trim())
-            |> _signIfNotSigned pfx password
+            |> _signIfNotSigned toolPathOptions pfx password
             0
     with
     | Shell.NonzeroExitException exitCode -> exitCode
