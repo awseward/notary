@@ -26,7 +26,7 @@ module Lib =
   let isFileSignedByCertHash signtool filePath certHash =
     let { proc = proc; stdOut = stdOut } =
       filePath
-      |> sprintf "verify /v /all /pa /sha1 %s \"%s\"" certHash
+      |> Tools.Signtool.generateVerifyArgs certHash
       |> Shell.createStartInfo signtool
       |> Shell.printCommand
       |> Shell.runSync
@@ -50,35 +50,31 @@ module Lib =
 
   let signIfNotSigned signtool certutil pfx password filePaths =
     let certHash = getPfxCertHash certutil password pfx
-    let doNotNeedSigning, needSigning =
+    let skipCount, filesToSign =
       filePaths
       |> Array.ofSeq
       |> Array.partition (fun filePath -> isFileSignedByCertHash signtool filePath certHash)
+      |> fun (toSkip, toSign) ->
+          (Array.length toSkip, List.ofArray toSign)
 
-    match Array.length doNotNeedSigning with
-    | 0 -> ()
-    | skipCount ->
-        printfn "Skipping %d file(s) that have already been signed with %s" skipCount pfx
+    if skipCount > 0 then
+      printfn "Skipping %d file(s) that have already been signed with %s" skipCount pfx
 
-    if Array.isEmpty needSigning then
+    if List.isEmpty filesToSign then
       ()
     else
       let timestampAlgo = "sha256"
       let digestAlgo    = "sha256"
       let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
-      let filePathsAsSingleString =
-        needSigning
-        |> Array.map (sprintf "\"%s\"")
-        |> String.concat " "
       let args =
-        sprintf
-          "sign /v /as /fd \"%s\" /td \"%s\" /tr \"%s\" /f \"%s\" /p \"%s\" %s"
+        Tools.Signtool.generateSignArgs
           digestAlgo
           timestampAlgo
           timestampUrl
           pfx
           password
-          filePathsAsSingleString
+          filesToSign
+
       args
       |> Shell.createStartInfo signtool
       |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] "))

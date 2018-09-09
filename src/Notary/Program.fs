@@ -3,6 +3,7 @@ open Notary
 open Notary.CommandLine.Args
 open Notary.Shell
 open System
+open Argu
 
 type Exit =
 | Ok = 0
