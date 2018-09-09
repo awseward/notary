@@ -6,15 +6,13 @@ module Lib =
   open System.Text.RegularExpressions
 
   let getPfxCertHash certutil password pfx =
-    let { stdOut = stdOut } =
-      pfx
-      |> Tools.Certutil.generateDumpArgs password
-      |> Shell.createStartInfo certutil
-      |> Shell.printCommandFiltered Tools.Certutil.filterPassword
-      |> Shell.runSync
-      |> Shell.raiseIfExitNonzero
-
-    stdOut
+    pfx
+    |> Tools.Certutil.generateDumpArgs password
+    |> Shell.createStartInfo certutil
+    |> Shell.printCommandFiltered Tools.Certutil.filterPassword
+    |> Shell.runSync
+    |> Shell.raiseIfExitNonzero
+    |> fun result -> result.stdOut
     |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
     |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
     |> Seq.last
@@ -23,39 +21,40 @@ module Lib =
     |> fun str -> str.Replace(" ", "")
     |> fun str -> str.ToUpperInvariant()
 
-  let isFileSignedByCertHash signtool filePath certHash =
-    let { proc = proc; stdOut = stdOut } =
-      filePath
+  let partitionBySigned signtool certHash filePaths =
+    let prefixText = "Successfully verified: "
+    let signed =
+      filePaths
       |> Tools.Signtool.generateVerifyArgs certHash
       |> Shell.createStartInfo signtool
       |> Shell.printCommand
       |> Shell.runSync
-
-    proc.ExitCode = 0 ||
-      // This doesn't really feel great, but I don't see another way right now
-      let prefixText = "number of signatures successfully verified:"
-      stdOut
+      |> fun result -> result.stdOut
       |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-      |> Array.map (fun str -> str.ToLowerInvariant())
-      |> Array.find (fun str -> str.StartsWith(prefixText))
-      |> fun str -> str.Trim()
-      |> fun str -> str.Replace(prefixText, "")
-      |> int
-      |> fun i -> i <> 0
+      |> Array.map (fun str -> str.Trim())
+      |> Array.filter (fun str -> str.StartsWith prefixText)
+      |> Array.map (fun str -> str.Replace(prefixText, ""))
+      |> Set.ofArray
+
+    signed
+    |> Set.difference (Set.ofList filePaths)
+    |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
 
   let isFileSignedByPfx signtool certutil password pfx filePath =
-    pfx
-    |> getPfxCertHash certutil password
-    |> isFileSignedByCertHash signtool filePath
+    let certHash = getPfxCertHash certutil password pfx
+
+    filePath
+    |> List.singleton
+    |> partitionBySigned signtool certHash
+    |> fun (signed, unsigned) -> Seq.contains filePath signed && Seq.isEmpty unsigned
 
   let signIfNotSigned signtool certutil pfx password filePaths =
     let certHash = getPfxCertHash certutil password pfx
     let skipCount, filesToSign =
       filePaths
-      |> Array.ofSeq
-      |> Array.partition (fun filePath -> isFileSignedByCertHash signtool filePath certHash)
-      |> fun (toSkip, toSign) ->
-          (Array.length toSkip, List.ofArray toSign)
+      |> List.ofSeq
+      |> partitionBySigned signtool certHash
+      |> fun (toSkip, toSign) -> (Array.length toSkip, Array.toList toSign)
 
     match skipCount with
     | 0 -> None

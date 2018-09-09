@@ -34,7 +34,7 @@ module Tools =
     | [<Mandatory; CustomCommandLine("/all")>] All
     | [<Mandatory; CustomCommandLine("/pa")>] Pa
     | [<Mandatory; CustomCommandLine("/sha1")>] Sha1 of string
-    | [<Mandatory; MainCommand; ExactlyOnce; Last>] Filepath of string
+    | [<Mandatory; MainCommand; ExactlyOnce; Last>] Filepaths of string list
     with
       interface IArgParserTemplate with member this.Usage = ""
 
@@ -51,14 +51,15 @@ module Tools =
     with
       interface IArgParserTemplate with member this.Usage = ""
 
-    let generateVerifyArgs sha1 filePath =
+
+    let generateVerifyArgs sha1 filePaths =
       _printCliArgsFlat <| [
         Verify
         VerifyArgs.Verbose
         All
         Pa
         Sha1 sha1
-        Filepath filePath
+        Filepaths filePaths
       ]
 
     let generateSignArgs fileDigestAlgo timestampDigestAlgo timestampServerUrl pfx password filesToSign =
