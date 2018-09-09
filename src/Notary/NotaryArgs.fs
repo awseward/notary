@@ -54,3 +54,8 @@ module Args =
                 | Signtool _ -> "signtool.exe filepath"
                 | Verbose -> "Print more detailed output to console"
                 | Quiet -> "Print no output to console"
+
+    let getToolPaths (parseResults: ParseResults<NotaryArgs>) =
+      Notary.Tools.buildPaths
+        (parseResults.TryGetResult <@ NotaryArgs.Certutil @>)
+        (parseResults.TryGetResult <@ NotaryArgs.Signtool @>)

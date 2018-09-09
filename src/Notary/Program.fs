@@ -17,7 +17,7 @@ let main argv =
     let parser = ArgumentParser.Create<NotaryArgs>()
     try
         let parseResults = parser.Parse argv
-        let toolPaths = Tools.pathsFromParseResults parseResults
+        let toolPaths = getToolPaths parseResults
 
         match parseResults.TryGetSubCommand() with
         // It would be nice if these were actually just filtered from
