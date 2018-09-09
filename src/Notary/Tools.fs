@@ -3,6 +3,7 @@ namespace Notary
 module Tools =
   open Argu
   open System
+  open System.Text.RegularExpressions
 
   type Paths =
     {
@@ -73,5 +74,23 @@ module Tools =
         FilesToSign filesToSign
       ]
 
+    let filterPassword commandStr =
+      Regex.Replace(commandStr, "/p [^ ]+ ", "/p [FILTERED] ")
+
   module Certutil =
-    ()
+    type private DumpArgs =
+    | [<Mandatory; First; CliPrefix(CliPrefix.Dash)>] Dump
+    | [<Mandatory; CustomCommandLine("-p")>] Password of string
+    | [<Mandatory; MainCommand; ExactlyOnce; Last>] Pfx of string
+    with
+      interface IArgParserTemplate with member this.Usage = ""
+
+    let generateDumpArgs password pfx =
+      _printCliArgsFlat <| [
+        Dump
+        Password password
+        Pfx pfx
+      ]
+
+    let filterPassword commandStr =
+      Regex.Replace(commandStr, "-p [^ ]+ ", "-p [FILTERED] ")

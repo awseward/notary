@@ -8,9 +8,9 @@ module Lib =
   let getPfxCertHash certutil password pfx =
     let { stdOut = stdOut } =
       pfx
-      |> sprintf "-dump -p \"%s\" %s" password
+      |> Tools.Certutil.generateDumpArgs password
       |> Shell.createStartInfo certutil
-      |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "-p [^ ]+ ", "-p [FILTERED] "))
+      |> Shell.printCommandFiltered Tools.Certutil.filterPassword
       |> Shell.runSync
       |> Shell.raiseIfExitNonzero
 
@@ -77,7 +77,7 @@ module Lib =
 
       args
       |> Shell.createStartInfo signtool
-      |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] "))
+      |> Shell.printCommandFiltered Tools.Signtool.filterPassword
       |> Shell.runSync
       |> Shell.ifExitZero ProcessResult.PrintStdOut
       |> Shell.raiseIfExitNonzero
