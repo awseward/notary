@@ -57,8 +57,18 @@ module Lib =
       |> fun (toSkip, toSign) ->
           (Array.length toSkip, List.ofArray toSign)
 
-    if skipCount > 0 then
-      printfn "Skipping %d file(s) that have already been signed with %s" skipCount pfx
+    match skipCount with
+    | 0 -> None
+    | 1 -> Some ("file", "has")
+    | _ -> Some ("files", "have")
+    |> Option.iter (fun (fileOrFiles, hasOrHave) ->
+        printfn
+          "Skipping %d %s which %s already been signed with %s"
+          skipCount
+          fileOrFiles
+          hasOrHave
+          pfx
+    )
 
     if List.isEmpty filesToSign then
       ()
