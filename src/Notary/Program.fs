@@ -113,6 +113,7 @@ let main argv =
     | Shell.NonzeroExitException exitCode -> exitCode
     | Lib.NotaryException ex ->
         printfn "ERROR: %s" ex.Message
+        printfn ""
         _nonzeroExit parser
     | :? ArguParseException as ex ->
         printfn "%s" ex.Message
