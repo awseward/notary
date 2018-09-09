@@ -5,4 +5,3 @@ nuget argu
 nuget FAKE
 nuget FSharp.Core
 nuget fsharp.faketargets
-nuget nuget.commandline
