@@ -35,7 +35,7 @@ module Args =
         | Pfx _ -> "pfx filepath"
         | Password _ -> "password for pfx file"
         | Files _ -> "files which will be checked for having been signed by the given pfx file"
-  and NotaryArgs =
+  and [<RequireSubcommand>] NotaryArgs =
   | [<CliPrefix(CliPrefix.None)>] Detect of ParseResults<DetectArgs>
   | [<CliPrefix(CliPrefix.None)>] Print of ParseResults<PrintArgs>
   | [<CliPrefix(CliPrefix.None)>] Sign of ParseResults<SignArgs>
