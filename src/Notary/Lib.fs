@@ -2,36 +2,26 @@ namespace Notary
 
 module Lib =
     open System
-    open System.Diagnostics
     open System.Text.RegularExpressions
     open Shell
 
-    // NOTE: This is probably just a temporary crutch
-    exception NotaryException of Exception
-
     let getPfxCertHash certutil password pfx =
-        try
-            let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
-                pfx
-                |> sprintf "-dump -p \"%s\" %s" password
-                |> Shell.createStartInfo certutil
-                |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "-p [^ ]+ ", "-p [FILTERED] "))
-                |> Shell.runSync
+      let { stdOut = stdOut } =
+        pfx
+        |> sprintf "-dump -p \"%s\" %s" password
+        |> Shell.createStartInfo certutil
+        |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "-p [^ ]+ ", "-p [FILTERED] "))
+        |> Shell.runSync
+        |> Shell.raiseIfExitNonzero
 
-            proc
-            |> Shell.printAndRaiseIfNonzeroExit stdErr
-            |> ignore
-
-            stdOut
-            |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
-            |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
-            |> Seq.last
-            |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
-            |> (fun str -> str.Trim())
-            |> (fun str -> str.Replace(" ", ""))
-            |> (fun str -> str.ToUpperInvariant())
-        with
-        | ex -> raise (NotaryException ex)
+      stdOut
+      |> (fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries))
+      |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
+      |> Seq.last
+      |> (fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", ""))
+      |> (fun str -> str.Trim())
+      |> (fun str -> str.Replace(" ", ""))
+      |> (fun str -> str.ToUpperInvariant())
 
     let isFileSignedByCertHash signtool filePath certHash =
         let { proc = proc; stdOut = stdOut } =
@@ -91,13 +81,10 @@ module Lib =
                     password
                     filePathsAsSingleString
 
-            let { proc = proc; stdOut = stdOut; stdErr = stdErr } =
-                args
-                |> Shell.createStartInfo signtool
-                |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] "))
-                |> Shell.runSync
-
-            proc
-            |> Shell.printIfZeroExit stdOut
-            |> Shell.printAndRaiseIfNonzeroExit stdErr
+            args
+            |> Shell.createStartInfo signtool
+            |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] "))
+            |> Shell.runSync
+            |> Shell.ifZeroExit ProcessResult.PrintStdOut
+            |> Shell.raiseIfExitNonzero
             |> ignore

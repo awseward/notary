@@ -4,7 +4,11 @@ module Shell =
   open System
   open System.Diagnostics
 
-  exception NonzeroExitException of int
+  let private _present = (String.IsNullOrWhiteSpace >> not)
+  let printfnIfAny str =
+    if (_present str) then printfn "%s" str
+  let eprintfnIfAny str =
+    if (_present str) then eprintfn "%s" str
 
   type ProcessResult =
     {
@@ -12,6 +16,23 @@ module Shell =
       stdOut: string
       stdErr: string
     }
+    with
+      member this.FileName = this.proc.StartInfo.FileName
+      member this.ExitCode = this.proc.ExitCode
+      static member PrintStdOut result =
+        printfnIfAny result.stdOut
+        result
+      static member PrintStdErr result =
+        eprintfnIfAny result.stdErr
+        result
+      static member PrintAllToStdErr result =
+        eprintfnIfAny result.stdOut
+        ProcessResult.PrintStdErr result |> ignore
+        eprintf "ERROR: %s terminated with exit code: %i" result.FileName result.ExitCode
+        result
+
+  exception NonzeroExitException of ProcessResult
+  exception MissingExecutableException of string
 
   let createStartInfo filename arguments =
     ProcessStartInfo(
@@ -24,15 +45,22 @@ module Shell =
       WindowStyle            = ProcessWindowStyle.Hidden)
 
   let runSync (startInfo: ProcessStartInfo) =
-    let proc = Process.Start(startInfo)
-    let result =
-      {
-        proc = proc
-        stdOut = proc.StandardOutput.ReadToEnd()
-        stdErr = proc.StandardError.ReadToEnd()
-      }
-    proc.WaitForExit()
-    result
+    try
+      let proc = Process.Start(startInfo)
+      let result =
+        {
+          proc = proc
+          stdOut = proc.StandardOutput.ReadToEnd()
+          stdErr = proc.StandardError.ReadToEnd()
+        }
+      proc.WaitForExit()
+      result
+    with
+    | :? System.ComponentModel.Win32Exception as ex ->
+        if ("The system cannot find the file specified" = ex.Message) then
+          raise (MissingExecutableException startInfo.FileName)
+        else
+          reraise()
 
   let getCommandText (startInfo: ProcessStartInfo) =
     sprintf "%s %s" startInfo.FileName startInfo.Arguments
@@ -45,24 +73,23 @@ module Shell =
   let printCommandFiltered filter startInfo =
     startInfo
     |> filterCommand filter
-    |> printfn "%s"
+    |> printfn "Notary: %s"
 
     startInfo
 
   let printCommand = printCommandFiltered id
 
-  let printIfZeroExit message (proc: Process) =
-    if proc.ExitCode = 0 then printfn "%s" message else ()
-    proc
+  let ifZeroExit fn (result: ProcessResult) =
+    if result.ExitCode = 0 then
+      (fn result)
+    else
+      result
 
-  let printAndRaiseIfNonzeroExit message (proc: Process) =
-    match proc.ExitCode with
-    | 0 -> proc
-    | exitCode ->
-        printfn "ERROR (%s exit code: %d): %s" proc.StartInfo.FileName proc.ExitCode message
-        raise (NonzeroExitException exitCode)
+  let ifNonzeroExit fn (result: ProcessResult) =
+    if result.ExitCode <> 0 then
+      (fn result)
+    else
+      result
 
-  let run filename arguments =
-    arguments
-    |> createStartInfo filename
-    |> runSync
+  let raiseIfExitNonzero =
+    ifNonzeroExit (NonzeroExitException >> raise)
