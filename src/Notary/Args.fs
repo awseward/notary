@@ -59,3 +59,13 @@ module Args =
       Notary.Tools.buildPaths
         (parseResults.TryGetResult <@ NotaryArgs.Certutil @>)
         (parseResults.TryGetResult <@ NotaryArgs.Signtool @>)
+
+    let tryGetSubCommand (parseResults: ParseResults<NotaryArgs>) =
+      // It would be nice if these were actually just filtered from
+      // TryGetSubCommand; they're definitely not subcommands...
+      match parseResults.TryGetSubCommand() with
+      | Some (Certutil _)
+      | Some (Signtool _)
+      | Some (Verbose)
+      | Some (Quiet) -> None
+      | subCommand -> subCommand

@@ -1,9 +1,9 @@
 namespace Notary
 
 module Lib =
+  open Shell
   open System
   open System.Text.RegularExpressions
-  open Shell
 
   let getPfxCertHash certutil password pfx =
     let { stdOut = stdOut } =
@@ -83,6 +83,6 @@ module Lib =
       |> Shell.createStartInfo signtool
       |> Shell.printCommandFiltered (fun str -> Regex.Replace(str, "/p [^ ]+ ", "/p [FILTERED] "))
       |> Shell.runSync
-      |> Shell.ifZeroExit ProcessResult.PrintStdOut
+      |> Shell.ifExitZero ProcessResult.PrintStdOut
       |> Shell.raiseIfExitNonzero
       |> ignore

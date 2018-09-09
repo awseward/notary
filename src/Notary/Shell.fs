@@ -79,17 +79,17 @@ module Shell =
 
   let printCommand = printCommandFiltered id
 
-  let ifZeroExit fn (result: ProcessResult) =
+  let ifExitZero fn (result: ProcessResult) =
     if result.ExitCode = 0 then
       (fn result)
     else
       result
 
-  let ifNonzeroExit fn (result: ProcessResult) =
+  let ifExitNonzero fn (result: ProcessResult) =
     if result.ExitCode <> 0 then
       (fn result)
     else
       result
 
   let raiseIfExitNonzero =
-    ifNonzeroExit (NonzeroExitException >> raise)
+    ifExitNonzero (NonzeroExitException >> raise)
