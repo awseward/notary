@@ -3,12 +3,55 @@ open Notary
 open Notary.CommandLine.Args
 open System
 
-// TODO: Unhardcode these
-let private _certutil = @"C:\WINDOWS\System32\certutil.exe"
-let private _signtool = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
-let private _isFileSignedByPfx = Lib.isFileSignedByPfx _signtool _certutil
-let private _getPfxCertHash = Lib.getPfxCertHash _certutil
-let private _signIfNotSigned = Lib.signIfNotSigned _signtool _certutil
+type ToolPathOptions =
+  {
+    certUtilPath : string option
+    signtoolPath : string option
+  }
+type ToolPaths =
+  {
+    certUtilPath : string
+    signtoolPath : string
+  }
+let defaultToolPaths =
+  {
+    certUtilPath = @"C:\WINDOWS\System32\certutil.exe"
+    signtoolPath =  @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.15063.0\x64\signtool.exe"
+  }
+let private _asToolPathOptions toolPathOptions : ToolPathOptions =
+  {
+    certUtilPath = Some (toolPathOptions.certUtilPath)
+    signtoolPath = Some (toolPathOptions.signtoolPath)
+  }
+let private _asToolPaths (toolPathOptions: ToolPathOptions) : ToolPaths =
+  {
+    certUtilPath = toolPathOptions.certUtilPath |> Option.defaultValue defaultToolPaths.certUtilPath
+    signtoolPath = toolPathOptions.signtoolPath |> Option.defaultValue defaultToolPaths.signtoolPath
+  }
+let defaultToolPathOptions = _asToolPathOptions defaultToolPaths
+
+let private _isFileSignedByPfx2 toolPathOptions =
+  toolPathOptions
+  |> _asToolPaths
+  |> fun conf -> Lib.isFileSignedByPfx conf.signtoolPath conf.certUtilPath
+
+let private _getPfxCertHash2 toolPathOptions =
+  toolPathOptions
+  |> _asToolPaths
+  |> fun conf -> conf.certUtilPath
+  |> Lib.getPfxCertHash
+
+let private _signIfNotSigned2 toolPathOptions =
+  toolPathOptions
+  |> _asToolPaths
+  |> fun conf -> Lib.signIfNotSigned conf.signtoolPath conf.certUtilPath
+
+[<Obsolete("Prefer _isFileSignedByPfx2")>]
+let private _isFileSignedByPfx = defaultToolPathOptions |> _isFileSignedByPfx2
+[<Obsolete("Prefer _getPfxCertHash2")>]
+let private _getPfxCertHash = defaultToolPathOptions |> _getPfxCertHash2
+[<Obsolete("Prefer _signIfNotSigned2")>]
+let private _signIfNotSigned = defaultToolPathOptions |> _signIfNotSigned2
 
 let _nonzeroExit (parser: ArgumentParser<'a>) =
     parser.PrintUsage()
