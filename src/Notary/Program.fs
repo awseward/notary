@@ -1,7 +1,6 @@
 open Argu
 open Notary
 open Notary.CommandLine.Args
-open Notary.Shell
 open System
 open Argu
 
@@ -70,15 +69,14 @@ let private _main argv (parser: ArgumentParser<NotaryArgs>) =
         parser.PrintUsage() |> eprintfn "%s"
         Exit.Error
   with
-  | Shell.MissingExecutableException filePath ->
+  | Shell.TempMissingExecutableException filePath ->
       eprintfn "ERROR: Not found: %s" filePath
       eprintfn ""
       Exit.Error
-  | Shell.NonzeroExitException result ->
-      result
-      |> ProcessResult.PrintAllToStdErr
-      |> fun r -> r.ExitCode
-      |> enum<Exit>
+  | Shell.TempNonzeroExitException (exitCode, output) ->
+      eprintfn "%s" output
+
+      enum<Exit> exitCode
   | :? ArguParseException as ex ->
       eprintfn "%s" ex.Message
       Exit.Error

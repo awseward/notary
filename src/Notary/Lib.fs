@@ -6,35 +6,51 @@ module Lib =
   open System.Text.RegularExpressions
 
   let getPfxCertHash certutil password pfx =
-    pfx
-    |> Tools.Certutil.generateDumpArgs password
-    |> Shell.createStartInfo certutil
-    |> Shell.printCommandFiltered Tools.Certutil.filterPassword
-    |> Shell.runSync
-    |> Shell.raiseIfExitNonzero
-    |> fun result -> result.stdOut
-    |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-    |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
-    |> Seq.last
-    |> fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", "")
-    |> fun str -> str.Trim()
-    |> fun str -> str.Replace(" ", "")
-    |> fun str -> str.ToUpperInvariant()
+    let result =
+      pfx
+      |> Tools.Certutil.generateDumpArgs password
+      |> Shell.buildStartInfo certutil
+      |> Shell.printCommandFiltered Tools.Certutil.filterPassword
+      |> Shell.runStartInfo
+
+    match result with
+    // TODO: Change this to no longer raise
+    | (Error (NonzeroExit (exitCode, msg))) ->
+        (exitCode, msg)
+        |> TempNonzeroExitException
+        |> raise
+    | (Error (ThrownExn ex)) ->
+        raise ex
+    // ODOT
+    | Ok stdOut ->
+        stdOut
+        |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
+        |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
+        |> Seq.last
+        |> fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", "")
+        |> fun str -> str.Trim()
+        |> fun str -> str.Replace(" ", "")
+        |> fun str -> str.ToUpperInvariant()
 
   let partitionBySigned signtool certHash filePaths =
     let prefixText = "Successfully verified: "
     let signed =
       filePaths
       |> Tools.Signtool.generateVerifyArgs certHash
-      |> Shell.createStartInfo signtool
+      |> Shell.buildStartInfo signtool
       |> Shell.printCommand
-      |> Shell.runSync
-      |> fun result -> result.stdOut
-      |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-      |> Array.map (fun str -> str.Trim())
-      |> Array.filter (fun str -> str.StartsWith prefixText)
-      |> Array.map (fun str -> str.Replace(prefixText, ""))
-      |> Set.ofArray
+      |> Shell.runStartInfo
+      |> function
+          | Error (ThrownExn ex) ->
+              raise ex
+          | Error (NonzeroExit (_, output))
+          | Ok output ->
+              output
+              |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
+              |> Array.map (fun str -> str.Trim())
+              |> Array.filter (fun str -> str.StartsWith prefixText)
+              |> Array.map (fun str -> str.Replace(prefixText, ""))
+              |> Set.ofArray
 
     signed
     |> Set.difference (Set.ofList filePaths)
@@ -69,9 +85,8 @@ module Lib =
           pfx
     )
 
-    if List.isEmpty filesToSign then
-      ()
-    else
+    let any = not << List.isEmpty
+    if any filesToSign then
       let timestampAlgo = "sha256"
       let digestAlgo    = "sha256"
       let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
@@ -85,9 +100,16 @@ module Lib =
           filesToSign
 
       args
-      |> Shell.createStartInfo signtool
+      |> Shell.buildStartInfo signtool
       |> Shell.printCommandFiltered Tools.Signtool.filterPassword
-      |> Shell.runSync
-      |> Shell.ifExitZero ProcessResult.PrintStdOut
-      |> Shell.raiseIfExitNonzero
-      |> ignore
+      |> Shell.runStartInfo
+      |> function
+          | Ok stdOut -> printfn "%s" stdOut
+          // TODO: Change this to no longer raise
+          | Error (NonzeroExit (exitCode, msg)) ->
+              (exitCode, msg)
+              |> TempNonzeroExitException
+              |> raise
+          | Error (ThrownExn ex) ->
+              raise ex
+          // ODOT

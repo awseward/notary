@@ -1,66 +1,73 @@
 namespace Notary
 
+open System
+
 module Shell =
   open System
   open System.Diagnostics
 
-  let private _present = (String.IsNullOrWhiteSpace >> not)
-  let printfnIfAny str =
-    if (_present str) then printfn "%s" str
-  let eprintfnIfAny str =
-    if (_present str) then eprintfn "%s" str
+  exception TempMissingExecutableException of string
+  exception TempNonzeroExitException of int * string
 
-  type ProcessResult =
-    {
-      proc  : Process
-      stdOut: string
-      stdErr: string
+  type Failure =
+  | NonzeroExit of int * string
+  | ThrownExn of Exception
+
+  let private _shimMissingExecutableException filename =
+    function
+    | Error (ThrownExn ex) ->
+        match ex with
+        | :? System.ComponentModel.Win32Exception
+          when "The system cannot find the file specified" = ex.Message ->
+            TempMissingExecutableException filename
+        | _ ->
+            ex
+        |> (Error << ThrownExn)
+    | x -> x
+
+  let private _buildNonzeroExit exitCode stdOut stdErr =
+    [stdOut; stdErr]
+    |> String.concat Environment.NewLine
+    |> fun output -> exitCode, output
+    |> (Error << NonzeroExit)
+
+  let private _startAndWait (info: ProcessStartInfo) =
+    let proc = Process.Start info
+    proc.WaitForExit()
+    proc
+
+  let private _getResult (proc: Process) =
+    let stdOut = proc.StandardOutput.ReadToEnd()
+    if proc.ExitCode = 0 then
+      Ok (stdOut)
+    else
+      _buildNonzeroExit
+        proc.ExitCode
+        stdOut
+        (proc.StandardError.ReadToEnd())
+
+  let private _getResultAsync (proc: Process) =
+    async {
+      let! stdOut = proc.StandardOutput.ReadToEndAsync() |> Async.AwaitTask
+
+      if proc.ExitCode = 0 then
+        return Ok (stdOut)
+      else
+        let! stdErr = proc.StandardError.ReadToEndAsync() |> Async.AwaitTask
+
+        return _buildNonzeroExit proc.ExitCode stdOut stdErr
     }
-    with
-      member this.FileName = this.proc.StartInfo.FileName
-      member this.ExitCode = this.proc.ExitCode
-      static member PrintStdOut result =
-        printfnIfAny result.stdOut
-        result
-      static member PrintStdErr result =
-        eprintfnIfAny result.stdErr
-        result
-      static member PrintAllToStdErr result =
-        eprintfnIfAny result.stdOut
-        ProcessResult.PrintStdErr result |> ignore
-        eprintf "ERROR: %s terminated with exit code: %i" result.FileName result.ExitCode
-        result
 
-  exception NonzeroExitException of ProcessResult
-  exception MissingExecutableException of string
-
-  let createStartInfo filename arguments =
-    ProcessStartInfo(
+  let buildStartInfo filename arguments =
+    ProcessStartInfo (
       FileName               = filename,
       Arguments              = arguments,
       RedirectStandardOutput = true,
       RedirectStandardError  = true,
       UseShellExecute        = false,
       CreateNoWindow         = true,
-      WindowStyle            = ProcessWindowStyle.Hidden)
-
-  let runSync (startInfo: ProcessStartInfo) =
-    try
-      let proc = Process.Start(startInfo)
-      let result =
-        {
-          proc = proc
-          stdOut = proc.StandardOutput.ReadToEnd()
-          stdErr = proc.StandardError.ReadToEnd()
-        }
-      proc.WaitForExit()
-      result
-    with
-    | :? System.ComponentModel.Win32Exception as ex ->
-        if ("The system cannot find the file specified" = ex.Message) then
-          raise (MissingExecutableException startInfo.FileName)
-        else
-          reraise()
+      WindowStyle            = ProcessWindowStyle.Hidden
+    )
 
   let getCommandText (startInfo: ProcessStartInfo) =
     sprintf "%s %s" startInfo.FileName startInfo.Arguments
@@ -79,17 +86,42 @@ module Shell =
 
   let printCommand = printCommandFiltered id
 
-  let ifExitZero fn (result: ProcessResult) =
-    if result.ExitCode = 0 then
-      (fn result)
-    else
-      result
+  let runStartInfo startInfo =
+    try
+      use proc = _startAndWait startInfo
 
-  let ifExitNonzero fn (result: ProcessResult) =
-    if result.ExitCode <> 0 then
-      (fn result)
-    else
-      result
+      _getResult proc
+    with
+    | ex -> ex |> (Error << ThrownExn)
 
-  let raiseIfExitNonzero =
-    ifExitNonzero (NonzeroExitException >> raise)
+  let run filename arguments =
+    try
+      arguments
+      |> buildStartInfo filename
+      |> runStartInfo
+    with
+    | ex -> ex |> (Error << ThrownExn)
+
+  let runStartInfoAsync startInfo =
+    async {
+      try
+        use proc = _startAndWait startInfo
+
+        return! _getResultAsync proc
+      with
+      | ex -> return ex |> (Error << ThrownExn)
+    }
+
+  let runAsync filename arguments =
+    async {
+      try
+        use proc =
+          arguments
+          |> buildStartInfo filename
+          |> _startAndWait
+
+        return! _getResultAsync proc
+      with
+      | ex -> return ex |> (Error << ThrownExn)
+    }
+
