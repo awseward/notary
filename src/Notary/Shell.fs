@@ -6,6 +6,7 @@ module Shell =
 
   type Failure =
   | NonzeroExit of int * string
+  | ErrMsg of string
   | ThrownExn of Exception
 
   let private _buildNonzeroExit exitCode stdOut stdErr =
@@ -38,6 +39,11 @@ module Shell =
       else
         return _buildNonzeroExit proc.ExitCode stdOut stdErr
     }
+
+  let nonzeroExitOk =
+    function
+    | Error (NonzeroExit (_, output)) -> Ok output
+    | other -> other
 
   let buildStartInfo filename arguments =
     ProcessStartInfo (

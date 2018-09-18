@@ -7,6 +7,12 @@ type ExitCodes =
 | Zero = 0
 | One = 1
 
+let private _coerceFailure =
+  function
+  | NonzeroExit (exitCode, msg) -> (enum<ExitCodes> exitCode, Some msg)
+  | ErrMsg msg -> (ExitCodes.One, Some msg)
+  | ThrownExn ex -> (ExitCodes.One, Some ex.Message)
+
 let private _detect (toolPaths: Tools.Paths) (args: ParseResults<DetectArgs>) =
   let pfx = args.GetResult <@ DetectArgs.Pfx @>
   let password = args.GetResult <@ DetectArgs.Password @>
@@ -18,15 +24,11 @@ let private _detect (toolPaths: Tools.Paths) (args: ParseResults<DetectArgs>) =
       toolPaths.certutil
       password
       pfx
-  |> Result.mapError (
-      function
-      | NonzeroExit (exitCode, msg) -> (enum<ExitCodes> exitCode, Some msg)
-      | ThrownExn ex -> (ExitCodes.One, Some ex.Message)
-  )
   |> Result.bind (fun isSigned ->
       if isSigned then Ok (Some "Already signed")
-      else Error (ExitCodes.One, Some "Not signed")
+      else Error (ErrMsg "Not signed")
   )
+  |> Result.mapError _coerceFailure
 
 let private _print (toolPaths: Tools.Paths) (args: ParseResults<PrintArgs>) =
   let password = args.GetResult <@ PrintArgs.Password @>
@@ -35,11 +37,7 @@ let private _print (toolPaths: Tools.Paths) (args: ParseResults<PrintArgs>) =
   pfx
   |> Lib.getPfxCertHash toolPaths.certutil password
   |> Result.map Some
-  |> Result.mapError (
-      function
-      | NonzeroExit (exitCode, msg) -> (enum<ExitCodes> exitCode, Some msg)
-      | ThrownExn ex -> (ExitCodes.One, Some ex.Message)
-  )
+  |> Result.mapError _coerceFailure
 
 let private _sign (toolPaths: Tools.Paths) (args: ParseResults<SignArgs>) =
   let pfx = args.GetResult <@ SignArgs.Pfx @>
@@ -53,11 +51,7 @@ let private _sign (toolPaths: Tools.Paths) (args: ParseResults<SignArgs>) =
       toolPaths.certutil
       pfx
       password
-  |> Result.mapError (
-      function
-      | NonzeroExit (exitCode, msg) -> (enum<ExitCodes> exitCode, Some msg)
-      | ThrownExn ex -> (ExitCodes.One, Some ex.Message)
-  )
+  |> Result.mapError _coerceFailure
 
 let private _main argv (parser: ArgumentParser<NotaryArgs>) =
   try

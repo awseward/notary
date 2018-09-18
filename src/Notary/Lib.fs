@@ -1,9 +1,30 @@
 namespace Notary
 
+module Result =
+  let attempt predicate failFn x =
+    if predicate x then Ok x
+    else Error (failFn x)
+
 module Lib =
   open Shell
   open System
   open System.Text.RegularExpressions
+
+  let private _parsePfxCertHash (stdOut: string) =
+    let prefix = "Cert Hash(sha1): "
+
+    stdOut
+    |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
+    |> Array.map (fun str -> str.Trim())
+    |> Array.filter (fun str -> str.StartsWith prefix)
+    |> Array.last // This seems dubious
+    |> fun str -> str.Replace(prefix, "")
+    |> fun str -> str.Trim()
+    |> fun str -> str.Replace(" ", "")
+    |> fun str -> str.ToUpperInvariant()
+    |> Result.attempt
+        (fun str -> Regex.IsMatch (str, "[A-F0-9]+"))
+        (ErrMsg << sprintf "Parsed cert hash value `%s` is not a valid SHA")
 
   let getPfxCertHash certutil password pfx =
     pfx
@@ -11,36 +32,25 @@ module Lib =
     |> Shell.buildStartInfo certutil
     |> Shell.printCommandFiltered Tools.Certutil.filterPassword
     |> Shell.runStartInfo
-    |> Result.map (fun stdOut ->
-        stdOut
-        |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-        |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
-        |> Seq.last
-        |> fun str -> Regex.Replace(str, "Cert Hash\(sha1\): ", "")
-        |> fun str -> str.Trim()
-        |> fun str -> str.Replace(" ", "")
-        |> fun str -> str.ToUpperInvariant()
-    )
+    |> Result.bind _parsePfxCertHash
 
   let partitionBySigned signtool certHash filePaths =
-    let prefixText = "Successfully verified: "
     filePaths
     |> Tools.Signtool.generateVerifyArgs certHash
     |> Shell.buildStartInfo signtool
     |> Shell.printCommand
     |> Shell.runStartInfo
-    |> function
-        | Error (NonzeroExit (_, output))
-        | Ok output ->
-            output
-            |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-            |> Array.map (fun str -> str.Trim())
-            |> Array.filter (fun str -> str.StartsWith prefixText)
-            |> Array.map (fun str -> str.Replace(prefixText, ""))
-            |> Set.ofArray
-            |> Ok
-        | Error x -> Error x
-    |> Result.map (fun signed ->
+    |> Shell.nonzeroExitOk
+    |> Result.map (fun output ->
+        let prefix = "Successfully verified: "
+        let signed =
+          output
+          |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
+          |> Array.map (fun str -> str.Trim())
+          |> Array.filter (fun str -> str.StartsWith prefix)
+          |> Array.map (fun str -> str.Replace(prefix, ""))
+          |> Set.ofArray
+
         signed
         |> Set.difference (Set.ofList filePaths)
         |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
@@ -73,7 +83,7 @@ module Lib =
                 | n -> Some (n, "files", "have")
             |> Option.iter (fun (n, files, have) ->
                 printfn
-                  "Skipping %d %s which %s already been signed with %s"
+                  "Notary: Skipping %d %s which %s already been signed with %s"
                   n
                   files
                   have
