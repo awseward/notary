@@ -47,7 +47,7 @@ module Lib =
     |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
 
 
-  let isFileSignedByPfx2 signtool certutil password pfx filePath =
+  let isFileSignedByPfx signtool certutil password pfx filePath =
     pfx
     |> getPfxCertHash certutil password
     |> Result.map (fun certHash ->
@@ -56,11 +56,6 @@ module Lib =
         |> partitionBySigned signtool certHash
         |> fun (signed, unsigned) -> Seq.contains filePath signed && Seq.isEmpty unsigned
     )
-
-  let isFileSignedByPfx signtool certutil password pfx filePath =
-    filePath
-    |> isFileSignedByPfx2 signtool certutil password pfx
-    |> Shell.shimRaiseIfError
 
   let signIfNotSigned signtool certutil pfx password filePaths =
     let certHash =

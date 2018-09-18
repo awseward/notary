@@ -13,19 +13,21 @@ let private _detect (toolPaths: Tools.Paths) (args: ParseResults<DetectArgs>) =
   let pfx = args.GetResult <@ DetectArgs.Pfx @>
   let password = args.GetResult <@ DetectArgs.Password @>
   let file = args.GetResult <@ DetectArgs.File @>
-  let isSigned =
-    Lib.isFileSignedByPfx
+
+  file
+  |> isFileSignedByPfx
       toolPaths.signtool
       toolPaths.certutil
       password
       pfx
-
-  if isSigned file then
-    printfn "Already signed"
-    Exit.Ok
-  else
-    printfn "Not signed"
-    Exit.Error
+  |> Shell.shimRaiseIfError
+  |> fun isSigned ->
+      if isSigned then
+        printfn "Already signed"
+        Exit.Ok
+      else
+        printfn "Not signed"
+        Exit.Error
 
 let private _print (toolPaths: Tools.Paths) (args: ParseResults<PrintArgs>) =
   let password = args.GetResult <@ PrintArgs.Password @>
