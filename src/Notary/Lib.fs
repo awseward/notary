@@ -6,23 +6,12 @@ module Lib =
   open System.Text.RegularExpressions
 
   let getPfxCertHash certutil password pfx =
-    let result =
-      pfx
-      |> Tools.Certutil.generateDumpArgs password
-      |> Shell.buildStartInfo certutil
-      |> Shell.printCommandFiltered Tools.Certutil.filterPassword
-      |> Shell.runStartInfo
-
-    match result with
-    // TODO: Change this to no longer raise
-    | (Error (NonzeroExit (exitCode, msg))) ->
-        (exitCode, msg)
-        |> TempNonzeroExitException
-        |> raise
-    | (Error (ThrownExn ex)) ->
-        raise ex
-    // ODOT
-    | Ok stdOut ->
+    pfx
+    |> Tools.Certutil.generateDumpArgs password
+    |> Shell.buildStartInfo certutil
+    |> Shell.printCommandFiltered Tools.Certutil.filterPassword
+    |> Shell.runStartInfo
+    |> Result.map (fun stdOut ->
         stdOut
         |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
         |> Array.filter (fun str -> str.StartsWith("Cert Hash(sha1): "))
@@ -31,6 +20,7 @@ module Lib =
         |> fun str -> str.Trim()
         |> fun str -> str.Replace(" ", "")
         |> fun str -> str.ToUpperInvariant()
+    )
 
   let partitionBySigned signtool certHash filePaths =
     let prefixText = "Successfully verified: "
@@ -56,16 +46,28 @@ module Lib =
     |> Set.difference (Set.ofList filePaths)
     |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
 
-  let isFileSignedByPfx signtool certutil password pfx filePath =
-    let certHash = getPfxCertHash certutil password pfx
 
+  let isFileSignedByPfx2 signtool certutil password pfx filePath =
+    pfx
+    |> getPfxCertHash certutil password
+    |> Result.map (fun certHash ->
+        filePath
+        |> List.singleton
+        |> partitionBySigned signtool certHash
+        |> fun (signed, unsigned) -> Seq.contains filePath signed && Seq.isEmpty unsigned
+    )
+
+  let isFileSignedByPfx signtool certutil password pfx filePath =
     filePath
-    |> List.singleton
-    |> partitionBySigned signtool certHash
-    |> fun (signed, unsigned) -> Seq.contains filePath signed && Seq.isEmpty unsigned
+    |> isFileSignedByPfx2 signtool certutil password pfx
+    |> Shell.shimRaiseIfError
 
   let signIfNotSigned signtool certutil pfx password filePaths =
-    let certHash = getPfxCertHash certutil password pfx
+    let certHash =
+      pfx
+      |> getPfxCertHash certutil password
+      |> Shell.shimRaiseIfError
+
     let skipCount, filesToSign =
       filePaths
       |> List.ofSeq

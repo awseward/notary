@@ -3,6 +3,7 @@ open Notary
 open Notary.CommandLine.Args
 open System
 open Argu
+open Notary
 
 type Exit =
 | Ok = 0
@@ -29,12 +30,10 @@ let private _detect (toolPaths: Tools.Paths) (args: ParseResults<DetectArgs>) =
 let private _print (toolPaths: Tools.Paths) (args: ParseResults<PrintArgs>) =
   let password = args.GetResult <@ PrintArgs.Password @>
   let pfx = args.GetResult <@ PrintArgs.Pfx @>
-  let getCertHash =
-    Lib.getPfxCertHash
-      toolPaths.certutil
-      password
+
   pfx
-  |> getCertHash
+  |> Lib.getPfxCertHash toolPaths.certutil password
+  |> Shell.shimRaiseIfError
   |> printfn "%s"
 
   Exit.Ok

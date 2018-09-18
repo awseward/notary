@@ -13,6 +13,17 @@ module Shell =
   | NonzeroExit of int * string
   | ThrownExn of Exception
 
+  [<Obsolete("Try to get away from this ASAP")>]
+  let shimRaiseIfError =
+    function
+    | (Error (NonzeroExit (exitCode, msg))) ->
+        (exitCode, msg)
+        |> TempNonzeroExitException
+        |> raise
+    | (Error (ThrownExn ex)) ->
+        raise ex
+    | Ok x -> x
+
   let private _shimMissingExecutableException filename =
     function
     | Error (ThrownExn ex) ->
