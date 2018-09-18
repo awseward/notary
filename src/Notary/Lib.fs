@@ -24,89 +24,82 @@ module Lib =
 
   let partitionBySigned signtool certHash filePaths =
     let prefixText = "Successfully verified: "
-    let signed =
-      filePaths
-      |> Tools.Signtool.generateVerifyArgs certHash
-      |> Shell.buildStartInfo signtool
-      |> Shell.printCommand
-      |> Shell.runStartInfo
-      |> function
-          | Error (ThrownExn ex) ->
-              raise ex
-          | Error (NonzeroExit (_, output))
-          | Ok output ->
-              output
-              |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-              |> Array.map (fun str -> str.Trim())
-              |> Array.filter (fun str -> str.StartsWith prefixText)
-              |> Array.map (fun str -> str.Replace(prefixText, ""))
-              |> Set.ofArray
-
-    signed
-    |> Set.difference (Set.ofList filePaths)
-    |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
-
+    filePaths
+    |> Tools.Signtool.generateVerifyArgs certHash
+    |> Shell.buildStartInfo signtool
+    |> Shell.printCommand
+    |> Shell.runStartInfo
+    |> function
+        | Error (NonzeroExit (_, output))
+        | Ok output ->
+            output
+            |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
+            |> Array.map (fun str -> str.Trim())
+            |> Array.filter (fun str -> str.StartsWith prefixText)
+            |> Array.map (fun str -> str.Replace(prefixText, ""))
+            |> Set.ofArray
+            |> Ok
+        | Error x -> Error x
+    |> Result.map (fun signed ->
+        signed
+        |> Set.difference (Set.ofList filePaths)
+        |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
+    )
 
   let isFileSignedByPfx signtool certutil password pfx filePath =
     pfx
     |> getPfxCertHash certutil password
-    |> Result.map (fun certHash ->
+    |> Result.bind (fun certHash ->
         filePath
         |> List.singleton
         |> partitionBySigned signtool certHash
-        |> fun (signed, unsigned) -> Seq.contains filePath signed && Seq.isEmpty unsigned
+        |> Result.map (fun (signed, unsigned) ->
+            Seq.contains filePath signed && Seq.isEmpty unsigned
+        )
     )
 
   let signIfNotSigned signtool certutil pfx password filePaths =
-    let certHash =
-      pfx
-      |> getPfxCertHash certutil password
-      |> Shell.shimRaiseIfError
+    pfx
+    |> getPfxCertHash certutil password
+    |> Result.bind (fun certHash ->
+        filePaths
+        |> partitionBySigned signtool certHash
+        |> Result.bind (fun (toSkip, toSign) ->
+            toSkip
+            |> Array.length
+            |> function
+                | 0 -> None
+                | 1 -> Some (1, "file", "has")
+                | n -> Some (n, "files", "have")
+            |> Option.iter (fun (n, files, have) ->
+                printfn
+                  "Skipping %d %s which %s already been signed with %s"
+                  n
+                  files
+                  have
+                  pfx
+            )
 
-    let skipCount, filesToSign =
-      filePaths
-      |> List.ofSeq
-      |> partitionBySigned signtool certHash
-      |> fun (toSkip, toSign) -> (Array.length toSkip, Array.toList toSign)
+            toSign
+            |> Array.toList
+            |> fun files ->
+                if List.isEmpty files then
+                  Ok None
+                else
+                  let timestampAlgo = "sha256"
+                  let digestAlgo    = "sha256"
+                  let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
 
-    match skipCount with
-    | 0 -> None
-    | 1 -> Some ("file", "has")
-    | _ -> Some ("files", "have")
-    |> Option.iter (fun (fileOrFiles, hasOrHave) ->
-        printfn
-          "Skipping %d %s which %s already been signed with %s"
-          skipCount
-          fileOrFiles
-          hasOrHave
-          pfx
+                  files
+                  |> Tools.Signtool.generateSignArgs
+                      digestAlgo
+                      timestampAlgo
+                      timestampUrl
+                      pfx
+                      password
+                  |> Shell.buildStartInfo signtool
+                  |> Shell.printCommandFiltered Tools.Signtool.filterPassword
+                  |> Shell.runStartInfo
+                  |> Result.map Some
+        )
     )
-
-    let any = not << List.isEmpty
-    if any filesToSign then
-      let timestampAlgo = "sha256"
-      let digestAlgo    = "sha256"
-      let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
-      let args =
-        Tools.Signtool.generateSignArgs
-          digestAlgo
-          timestampAlgo
-          timestampUrl
-          pfx
-          password
-          filesToSign
-
-      args
-      |> Shell.buildStartInfo signtool
-      |> Shell.printCommandFiltered Tools.Signtool.filterPassword
-      |> Shell.runStartInfo
-      |> function
-          | Ok stdOut -> printfn "%s" stdOut
-          // TODO: Change this to no longer raise
-          | Error (NonzeroExit (exitCode, msg)) ->
-              (exitCode, msg)
-              |> TempNonzeroExitException
-              |> raise
-          | Error (ThrownExn ex) ->
-              raise ex
-          // ODOT

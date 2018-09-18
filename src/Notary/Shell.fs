@@ -1,40 +1,12 @@
 namespace Notary
 
-open System
-
 module Shell =
   open System
   open System.Diagnostics
 
-  exception TempMissingExecutableException of string
-  exception TempNonzeroExitException of int * string
-
   type Failure =
   | NonzeroExit of int * string
   | ThrownExn of Exception
-
-  [<Obsolete("Try to get away from this ASAP")>]
-  let shimRaiseIfError =
-    function
-    | (Error (NonzeroExit (exitCode, msg))) ->
-        (exitCode, msg)
-        |> TempNonzeroExitException
-        |> raise
-    | (Error (ThrownExn ex)) ->
-        raise ex
-    | Ok x -> x
-
-  let private _shimMissingExecutableException filename =
-    function
-    | Error (ThrownExn ex) ->
-        match ex with
-        | :? System.ComponentModel.Win32Exception
-          when "The system cannot find the file specified" = ex.Message ->
-            TempMissingExecutableException filename
-        | _ ->
-            ex
-        |> (Error << ThrownExn)
-    | x -> x
 
   let private _buildNonzeroExit exitCode stdOut stdErr =
     [stdOut; stdErr]

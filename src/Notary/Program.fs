@@ -1,13 +1,11 @@
 open Argu
 open Notary
 open Notary.CommandLine.Args
-open System
-open Argu
-open Notary
+open Notary.Shell
 
-type Exit =
-| Ok = 0
-| Error = 1
+type ExitCodes =
+| Zero = 0
+| One = 1
 
 let private _detect (toolPaths: Tools.Paths) (args: ParseResults<DetectArgs>) =
   let pfx = args.GetResult <@ DetectArgs.Pfx @>
@@ -15,19 +13,20 @@ let private _detect (toolPaths: Tools.Paths) (args: ParseResults<DetectArgs>) =
   let file = args.GetResult <@ DetectArgs.File @>
 
   file
-  |> isFileSignedByPfx
+  |> Lib.isFileSignedByPfx
       toolPaths.signtool
       toolPaths.certutil
       password
       pfx
-  |> Shell.shimRaiseIfError
-  |> fun isSigned ->
-      if isSigned then
-        printfn "Already signed"
-        Exit.Ok
-      else
-        printfn "Not signed"
-        Exit.Error
+  |> Result.mapError (
+      function
+      | NonzeroExit (exitCode, msg) -> (enum<ExitCodes> exitCode, Some msg)
+      | ThrownExn ex -> (ExitCodes.One, Some ex.Message)
+  )
+  |> Result.bind (fun isSigned ->
+      if isSigned then Ok (Some "Already signed")
+      else Error (ExitCodes.One, Some "Not signed")
+  )
 
 let private _print (toolPaths: Tools.Paths) (args: ParseResults<PrintArgs>) =
   let password = args.GetResult <@ PrintArgs.Password @>
@@ -35,27 +34,30 @@ let private _print (toolPaths: Tools.Paths) (args: ParseResults<PrintArgs>) =
 
   pfx
   |> Lib.getPfxCertHash toolPaths.certutil password
-  |> Shell.shimRaiseIfError
-  |> printfn "%s"
-
-  Exit.Ok
+  |> Result.map Some
+  |> Result.mapError (
+      function
+      | NonzeroExit (exitCode, msg) -> (enum<ExitCodes> exitCode, Some msg)
+      | ThrownExn ex -> (ExitCodes.One, Some ex.Message)
+  )
 
 let private _sign (toolPaths: Tools.Paths) (args: ParseResults<SignArgs>) =
   let pfx = args.GetResult <@ SignArgs.Pfx @>
   let password = args.GetResult <@ SignArgs.Password @>
   let files = args.GetResult <@ SignArgs.Files @>
-  let signFiles =
-    Lib.signIfNotSigned
+
+  files
+  |> List.map (fun str -> str.Trim())
+  |> Lib.signIfNotSigned
       toolPaths.signtool
       toolPaths.certutil
       pfx
       password
-
-  files
-  |> List.map (fun str -> str.Trim())
-  |> signFiles
-
-  Exit.Ok
+  |> Result.mapError (
+      function
+      | NonzeroExit (exitCode, msg) -> (enum<ExitCodes> exitCode, Some msg)
+      | ThrownExn ex -> (ExitCodes.One, Some ex.Message)
+  )
 
 let private _main argv (parser: ArgumentParser<NotaryArgs>) =
   try
@@ -67,26 +69,23 @@ let private _main argv (parser: ArgumentParser<NotaryArgs>) =
     | Some (Print args) -> _print toolPaths args
     | Some (Sign args) -> _sign toolPaths args
     | _ ->
-        parser.PrintUsage() |> eprintfn "%s"
-        Exit.Error
+        parser.PrintUsage()
+        |> fun msg -> ExitCodes.One, Some msg
+        |> Error
   with
-  | Shell.TempMissingExecutableException filePath ->
-      eprintfn "ERROR: Not found: %s" filePath
-      eprintfn ""
-      Exit.Error
-  | Shell.TempNonzeroExitException (exitCode, output) ->
-      eprintfn "%s" output
-
-      enum<Exit> exitCode
-  | :? ArguParseException as ex ->
-      eprintfn "%s" ex.Message
-      Exit.Error
   | ex ->
-      eprintfn "ERROR: %s" ex.Message
-      Exit.Error
+      ex.Message
+      |> fun str -> ExitCodes.One, Some str
+      |> Error
 
 [<EntryPoint>]
 let main argv =
   ArgumentParser.Create<NotaryArgs>()
   |> _main argv
-  |> int
+  |> function
+      | Ok msg ->
+          Option.iter (printfn "%s") msg
+          0
+      | Error (exitCode, msgOpt) ->
+          Option.iter (eprintf "ERROR: %s") msgOpt
+          int exitCode
