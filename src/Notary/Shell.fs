@@ -31,30 +31,28 @@ module Shell =
     |> fun output -> exitCode, output
     |> (Error << NonzeroExit)
 
-  let private _startAndWait (info: ProcessStartInfo) =
-    let proc = Process.Start info
-    proc.WaitForExit()
-    proc
-
   let private _getResult (proc: Process) =
     let stdOut = proc.StandardOutput.ReadToEnd()
+    let stdErr = proc.StandardError.ReadToEnd()
+    proc.WaitForExit()
+
     if proc.ExitCode = 0 then
       Ok (stdOut)
     else
       _buildNonzeroExit
         proc.ExitCode
         stdOut
-        (proc.StandardError.ReadToEnd())
+        stdErr
 
   let private _getResultAsync (proc: Process) =
     async {
       let! stdOut = proc.StandardOutput.ReadToEndAsync() |> Async.AwaitTask
+      let! stdErr = proc.StandardError.ReadToEndAsync() |> Async.AwaitTask
+      proc.WaitForExit()
 
       if proc.ExitCode = 0 then
         return Ok (stdOut)
       else
-        let! stdErr = proc.StandardError.ReadToEndAsync() |> Async.AwaitTask
-
         return _buildNonzeroExit proc.ExitCode stdOut stdErr
     }
 
@@ -86,9 +84,9 @@ module Shell =
 
   let printCommand = printCommandFiltered id
 
-  let runStartInfo startInfo =
+  let runStartInfo (startInfo: ProcessStartInfo) =
     try
-      use proc = _startAndWait startInfo
+      use proc = Process.Start startInfo
 
       _getResult proc
     with
@@ -102,10 +100,10 @@ module Shell =
     with
     | ex -> ex |> (Error << ThrownExn)
 
-  let runStartInfoAsync startInfo =
+  let runStartInfoAsync (startInfo: ProcessStartInfo) =
     async {
       try
-        use proc = _startAndWait startInfo
+        use proc = Process.Start startInfo
 
         return! _getResultAsync proc
       with
@@ -118,7 +116,7 @@ module Shell =
         use proc =
           arguments
           |> buildStartInfo filename
-          |> _startAndWait
+          |> Process.Start
 
         return! _getResultAsync proc
       with
