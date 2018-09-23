@@ -7,7 +7,7 @@ module Types =
     type _T = CertHash of string
 
     let create str =
-      if Regex.IsMatch (str, "[A-F0-9]+") then
+      if Regex.IsMatch (str, "^[A-Fa-f0-9]+$") then
         Ok (CertHash str)
       else
         str

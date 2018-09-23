@@ -16,7 +16,6 @@ module Lib =
     |> fun str -> str.Replace(prefix, "")
     |> fun str -> str.Trim()
     |> fun str -> str.Replace(" ", "")
-    |> fun str -> str.ToUpperInvariant()
     |> CertHash.create
     |> Result.mapError ErrMsg
 
