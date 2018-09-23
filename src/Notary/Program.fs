@@ -2,6 +2,7 @@ open Argu
 open Notary
 open Notary.CommandLine.Args
 open Notary.Shell
+open Notary.Types
 
 type ExitCodes =
 | Zero = 0
@@ -36,7 +37,7 @@ let private _print (toolPaths: Tools.Paths) (args: ParseResults<PrintArgs>) =
 
   pfx
   |> Lib.getPfxCertHash toolPaths.certutil password
-  |> Result.map Some
+  |> Result.map (CertHash.apply Some)
   |> Result.mapError _coerceFailure
 
 let private _sign (toolPaths: Tools.Paths) (args: ParseResults<SignArgs>) =

@@ -1,14 +1,9 @@
 namespace Notary
 
-module Result =
-  let attempt predicate failFn x =
-    if predicate x then Ok x
-    else Error (failFn x)
-
 module Lib =
+  open Notary.Types
   open Shell
   open System
-  open System.Text.RegularExpressions
 
   let private _parsePfxCertHash (stdOut: string) =
     let prefix = "Cert Hash(sha1): "
@@ -22,9 +17,8 @@ module Lib =
     |> fun str -> str.Trim()
     |> fun str -> str.Replace(" ", "")
     |> fun str -> str.ToUpperInvariant()
-    |> Result.attempt
-        (fun str -> Regex.IsMatch (str, "[A-F0-9]+"))
-        (ErrMsg << sprintf "Parsed cert hash value `%s` is not a valid SHA")
+    |> CertHash.create
+    |> Result.mapError ErrMsg
 
   let getPfxCertHash certutil password pfx =
     pfx
@@ -36,7 +30,7 @@ module Lib =
 
   let partitionBySigned signtool certHash filePaths =
     filePaths
-    |> Tools.Signtool.generateVerifyArgs certHash
+    |> Tools.Signtool.generateVerifyArgs (CertHash.value certHash)
     |> Shell.buildStartInfo signtool
     |> Shell.printCommand
     |> Shell.runStartInfo
