@@ -5,19 +5,39 @@ module Lib =
   open Shell
   open System
 
-  let private _parsePfxCertHash (stdOut: string) =
+  // TODO: Parameterize these or something
+  let private _timestampAlgo = "sha256"
+  let private _digestAlgo    = "sha256"
+  let private _timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
+
+  let private _parsePfxCertHash (certutilOutput: string) =
     let prefix = "Cert Hash(sha1): "
 
-    stdOut
-    |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-    |> Array.map (fun str -> str.Trim())
-    |> Array.filter (fun str -> str.StartsWith prefix)
+    certutilOutput
+    |> String.splitStr Environment.NewLine
+    |> Array.map String.trim
+    |> Array.filter (String.startsWith prefix)
     |> Array.last // This seems dubious
-    |> fun str -> str.Replace(prefix, "")
-    |> fun str -> str.Trim()
-    |> fun str -> str.Replace(" ", "")
+    |> String.replaceStr prefix ""
+    |> String.trim
+    |> String.replaceStr " " ""
     |> CertHash.create
     |> Result.mapError ErrMsg
+
+  let private _determineSignedAndUnsigned filePaths (certutilOutput: string) =
+    let prefix = "Successfully verified: "
+
+    let signed =
+      certutilOutput
+      |> String.splitStr Environment.NewLine
+      |> Array.map String.trim
+      |> Array.filter (String.startsWith prefix)
+      |> Array.map (String.replaceStr prefix "")
+      |> Set.ofArray
+
+    signed
+    |> Set.difference (Set.ofList filePaths)
+    |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
 
   let getPfxCertHash certutil password pfx =
     pfx
@@ -34,75 +54,50 @@ module Lib =
     |> Shell.printCommand
     |> Shell.runStartInfo
     |> Shell.nonzeroExitOk
-    |> Result.map (fun output ->
-        let prefix = "Successfully verified: "
-        let signed =
-          output
-          |> fun str -> str.Split([| Environment.NewLine |], StringSplitOptions.RemoveEmptyEntries)
-          |> Array.map (fun str -> str.Trim())
-          |> Array.filter (fun str -> str.StartsWith prefix)
-          |> Array.map (fun str -> str.Replace(prefix, ""))
-          |> Set.ofArray
-
-        signed
-        |> Set.difference (Set.ofList filePaths)
-        |> fun unsigned -> (Set.toArray signed, Set.toArray unsigned)
-    )
+    |> Result.map (_determineSignedAndUnsigned filePaths)
 
   let isFileSignedByPfx signtool certutil password pfx filePath =
-    pfx
-    |> getPfxCertHash certutil password
-    |> Result.bind (fun certHash ->
-        filePath
-        |> List.singleton
-        |> partitionBySigned signtool certHash
-        |> Result.map (fun (signed, unsigned) ->
-            Seq.contains filePath signed && Seq.isEmpty unsigned
-        )
-    )
+    doResult {
+      let! certHash = getPfxCertHash certutil password pfx
+      let! signed, unsigned = partitionBySigned signtool certHash [filePath]
+
+      return signed |> Seq.contains filePath && Seq.isEmpty unsigned
+    }
 
   let signIfNotSigned signtool certutil pfx password filePaths =
-    pfx
-    |> getPfxCertHash certutil password
-    |> Result.bind (fun certHash ->
-        filePaths
-        |> partitionBySigned signtool certHash
-        |> Result.bind (fun (toSkip, toSign) ->
-            toSkip
-            |> Array.length
-            |> function
-                | 0 -> None
-                | 1 -> Some (1, "file", "has")
-                | n -> Some (n, "files", "have")
-            |> Option.iter (fun (n, files, have) ->
-                printfn
-                  "Notary: Skipping %d %s which %s already been signed with %s"
-                  n
-                  files
-                  have
-                  pfx
-            )
+    doResult {
+      let! certHash = getPfxCertHash certutil password pfx
+      let! signed, unsigned = partitionBySigned signtool certHash filePaths
 
-            toSign
-            |> Array.toList
-            |> fun files ->
-                if List.isEmpty files then
-                  Ok None
-                else
-                  let timestampAlgo = "sha256"
-                  let digestAlgo    = "sha256"
-                  let timestampUrl  = "http://sha256timestamp.ws.symantec.com/sha256/timestamp"
+      signed
+      |> Array.length
+      |> function
+          | 0 -> None
+          | 1 -> Some (1, "file", "has")
+          | n -> Some (n, "files", "have")
+      |> Option.iter (fun (n, files, have) ->
+          printfn
+            "Notary: Skipping %d %s which %s already been signed with %s"
+            n
+            files
+            have
+            pfx
+      )
 
-                  files
-                  |> Tools.Signtool.generateSignArgs
-                      digestAlgo
-                      timestampAlgo
-                      timestampUrl
-                      pfx
-                      password
-                  |> Shell.buildStartInfo signtool
-                  |> Shell.printCommandFiltered Tools.Signtool.filterPassword
-                  |> Shell.runStartInfo
-                  |> Result.map Some
-        )
-    )
+      if Array.isEmpty unsigned then return None
+      else
+        let! shellOutput =
+          unsigned
+          |> List.ofArray
+          |> Tools.Signtool.generateSignArgs
+              _digestAlgo
+              _timestampAlgo
+              _timestampUrl
+              pfx
+              password
+          |> Shell.buildStartInfo signtool
+          |> Shell.printCommandFiltered Tools.Signtool.filterPassword
+          |> Shell.runStartInfo
+
+        return Some shellOutput
+    }

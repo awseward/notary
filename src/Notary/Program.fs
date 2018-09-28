@@ -46,7 +46,7 @@ let private _sign (toolPaths: Tools.Paths) (args: ParseResults<SignArgs>) =
   let files = args.GetResult <@ SignArgs.Files @>
 
   files
-  |> List.map (fun str -> str.Trim())
+  |> List.map String.trim
   |> Lib.signIfNotSigned
       toolPaths.signtool
       toolPaths.certutil
