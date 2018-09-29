@@ -20,12 +20,8 @@ module Types =
     let value = apply id
 
   type ResultBuilder () =
-    member this.Bind (m , f) =
-      match m with
-      | Ok a -> f a
-      | Error a -> Error a
-    member this.Return a =
-      Ok a
+    member this.Bind (m, f) = Result.bind f m
+    member this.Return a = Ok a
     member this.ReturnFrom m = m
 
   let doResult = new ResultBuilder ()
