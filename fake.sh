@@ -3,4 +3,4 @@ set -e
 
 ./paket.sh restore --fail-on-checks
 
-./packages/FAKE/tools/FAKE.exe build.fsx $@
+./packages/build/FAKE/tools/FAKE.exe build.fsx $@

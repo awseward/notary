@@ -310,3 +310,4 @@ __pycache__/
 
 # Misc manual additions
 .vscode/
+packages/
