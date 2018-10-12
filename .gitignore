@@ -177,8 +177,11 @@ PublishScripts/
 *.nupkg
 # The packages folder can be ignored because of Package Restore
 **/packages/*
-# except build/, which is used as an MSBuild target.
-!**/packages/build/
+
+# NOTE: Commenting this out because I'm not sure it applies in this repo
+# # except build/, which is used as an MSBuild target.
+# !**/packages/build/
+
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/packages/repositories.config
 # NuGet v3's project.json files produces more ignorable files
