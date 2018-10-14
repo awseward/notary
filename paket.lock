@@ -8,9 +8,11 @@ GROUP Build
 RESTRICTION: == net471
 NUGET
   remote: https://www.nuget.org/api/v2
-    ASeward.MiscTools (0.0.2)
-      FSharp.Core
+    ASeward.MiscTools (0.0.4-c)
+      FSharp.Core (>= 4.2.3)
+      Newtonsoft.Json (>= 11.0)
       System.ValueTuple (>= 4.4.0-prerelease <= 4.4)
     FAKE (4.63)
     FSharp.Core (4.2.3)
+    Newtonsoft.Json (11.0.2)
     System.ValueTuple (4.4)

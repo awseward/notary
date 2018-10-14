@@ -1,10 +1,20 @@
 #r "./packages/build/FAKE/tools/FakeLib.dll"
 #r "./packages/build/ASeward.MiscTools/lib/net471/ASeward.MiscTools.dll"
 
+open ASeward.MiscTools
 open ASeward.MiscTools.Versioning
 open Fake
 
 FakeTargetStubs.createVersionTargets Target getBuildParam ["src/Notary/AssemblyInfo.fs"]
+
+Target
+  ReleaseNotes.FakeTargetStubs.targetName
+  (fun _ ->
+    ReleaseNotes.FakeTargetStubs.printReleaseNotes
+      (getBuildParamOrDefault)
+      "awseward"
+      "notary"
+  )
 
 let projects = !! "/**/*.fsproj"
 
