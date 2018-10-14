@@ -12,7 +12,7 @@ NUGET
       FSharp.Core (>= 4.2.3)
       Newtonsoft.Json (>= 11.0)
       System.ValueTuple (>= 4.4.0-prerelease <= 4.4)
-    FAKE (4.63)
+    FAKE (5.8.4)
     FSharp.Core (4.2.3)
     Newtonsoft.Json (11.0.2)
     System.ValueTuple (4.4)
