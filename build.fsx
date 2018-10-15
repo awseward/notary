@@ -1,5 +1,5 @@
 #r "./packages/build/FAKE/tools/FakeLib.dll"
-#r "./packages/build/ASeward.MiscTools/lib/net471/ASeward.MiscTools.dll"
+#r "./packages/build/ASeward.MiscTools/lib/netstandard2.0/ASeward.MiscTools.dll"
 #load "./temp/shims.fsx"
 
 open ASeward.MiscTools
@@ -16,7 +16,7 @@ Target
   ReleaseNotes.FakeTargetStubs.targetName
   (fun _ ->
     ReleaseNotes.FakeTargetStubs.printReleaseNotes
-      (Environment.environVarOrDefault)
+      (getBuildParamOrDefault)
       "awseward"
       "notary"
   )

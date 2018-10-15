@@ -7,3 +7,5 @@ module Shims =
   let Target = Target
   let RunTargetOrDefault = RunTargetOrDefault
   let (<==) = (<==)
+  let getBuildParam = getBuildParam
+  let getBuildParamOrDefault = getBuildParamOrDefault
