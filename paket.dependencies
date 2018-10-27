@@ -5,8 +5,8 @@ nuget argu
 nuget FSharp.Core
 
 group Build
-  framework: net471
+  framework: auto-detect
   source https://www.nuget.org/api/v2
 
   nuget FAKE
-  nuget ASeward.MiscTools 0.0.4-c
+  nuget ASeward.MiscTools 0.0.5

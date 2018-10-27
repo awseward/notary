@@ -5,14 +5,20 @@ NUGET
     FSharp.Core (4.2.3)
 
 GROUP Build
-RESTRICTION: == net471
+RESTRICTION: == net45
 NUGET
   remote: https://www.nuget.org/api/v2
-    ASeward.MiscTools (0.0.4-c)
+    ASeward.MiscTools (0.0.5)
       FSharp.Core (>= 4.2.3)
       Newtonsoft.Json (>= 11.0)
       System.ValueTuple (>= 4.4.0-prerelease <= 4.4)
     FAKE (5.8.4)
     FSharp.Core (4.2.3)
+    Microsoft.NETCore.Platforms (2.1.1)
+    NETStandard.Library (2.0.3)
+      Microsoft.NETCore.Platforms (>= 1.1)
+      System.Runtime.InteropServices.RuntimeInformation (>= 4.3)
     Newtonsoft.Json (11.0.2)
+    System.Runtime.InteropServices.RuntimeInformation (4.3)
     System.ValueTuple (4.4)
+      NETStandard.Library (>= 1.6.1)
