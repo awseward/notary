@@ -9,4 +9,4 @@ group Build
   source https://www.nuget.org/api/v2
 
   nuget FAKE
-  nuget ASeward.MiscTools 0.0.5
+  nuget ASeward.MiscTools 0.1.0

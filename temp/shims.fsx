@@ -8,4 +8,6 @@ module Shims =
   open Fake
   let Target = Target
   let RunTargetOrDefault = RunTargetOrDefault
+  let getBuildParam = getBuildParam
+  let getBuildParamOrDefault = getBuildParamOrDefault
   let (<==) = (<==)
