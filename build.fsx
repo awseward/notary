@@ -1,5 +1,5 @@
 #r "./packages/build/FAKE/tools/FakeLib.dll"
-#r "./packages/build/ASeward.MiscTools/lib/net471/ASeward.MiscTools.dll"
+#r "./packages/build/ASeward.MiscTools/lib/netstandard2.0/ASeward.MiscTools.dll"
 #load "./temp/shims.fsx"
 
 open ASeward.MiscTools
@@ -10,16 +10,15 @@ open Fake.IO
 open Fake.IO.Globbing.Operators
 open Notary.Fake.Shims
 
-FakeTargetStubs.createVersionTargets Target Environment.environVar ["src/Notary/AssemblyInfo.fs"]
+module CannedTargets =
+  open ASeward.MiscTools.FakeTargets
+  open ASeward.MiscTools.FakeTargets.Fake4
 
-Target
-  ReleaseNotes.FakeTargetStubs.targetName
-  (fun _ ->
-    ReleaseNotes.FakeTargetStubs.printReleaseNotes
-      (Environment.environVarOrDefault)
-      "awseward"
-      "notary"
-  )
+  let setup () =
+    createVersionTargets Target getBuildParam ["src/Notary/AssemblyInfo.fs"]
+    Target TargetNames.releaseNotesPrint <| fun _ -> releaseNotesPrint getBuildParamOrDefault "awseward" "notary"
+
+CannedTargets.setup ()
 
 let projects = !! "**/*.fsproj"
 
@@ -43,7 +42,7 @@ Target "Paket:Pack" (fun _ ->
 Target "Paket:Push" (fun _ ->
     Paket.push <| fun p ->
         { p with
-            ApiKey = Environment.environVar "BUGSNAG_NET_NUGET_API_KEY"
+            ApiKey = Environment.environVar "NUGET_API_KEY"
             WorkingDir = paketOutputDir
         }
 )
