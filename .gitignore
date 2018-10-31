@@ -313,3 +313,4 @@ __pycache__/
 
 # Misc manual additions
 .vscode/
+.paket/Paket.Restore.targets
